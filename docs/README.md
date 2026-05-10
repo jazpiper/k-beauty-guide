@@ -47,6 +47,7 @@
 
 ### Plans / Specs
 
+- [Remaining Work Roadmap](superpowers/plans/2026-05-10-remaining-work-roadmap.md): 현재 남은 구현 작업의 정식 순서와 phase별 검증 기준.
 - [MVP Implementation Plan](superpowers/plans/2026-05-01-mvp-implementation-plan.md): Supabase-backed MVP 구현 순서.
 - [Product Media and Description Ingestion Plan](superpowers/plans/2026-05-10-product-media-description-ingestion-plan.md): 제품 이미지, 상세 설명, claim 후보 수집과 검수 계획.
 - [Product Ingestion and Ingredient Safety Automation](superpowers/specs/2026-05-01-product-ingestion-ingredient-safety-design.md): 수집 자동화와 성분 안전성 설계 초안.
@@ -87,8 +88,6 @@
 
 ## 다음 문서화 우선순위
 
-1. 실제 로컬 검증 결과를 남기는 짧은 `docs/ops` 체크포인트 문서 또는 runbook 섹션을 추가한다.
-2. Supabase Edge Function별 구현 상태와 남은 DB mutation 범위를 API 문서에 반영한다.
+1. [Remaining Work Roadmap](superpowers/plans/2026-05-10-remaining-work-roadmap.md)의 Phase 1부터 구현한다.
+2. Phase 구현이 끝날 때마다 관련 architecture/API/ops 문서에 실제 동작과 검증 결과를 반영한다.
 3. crawler runtime wiring이 들어오면 `crawler/README.md`에 fetcher, snapshot store, parser runner, review writer의 실제 호출 흐름을 추가한다.
-4. frontend fallback과 Supabase live data의 차이를 Products/Ingredients/Product Detail 문서에 업데이트한다.
-5. Admin Review Console 구현이 시작되면 권한, audit log, second review 조건을 화면별 acceptance criteria로 쪼갠다.

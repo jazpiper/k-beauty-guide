@@ -25,6 +25,7 @@
 | MVP 백엔드 결정값 | [docs/architecture/06-mvp-backend-decisions.md](docs/architecture/06-mvp-backend-decisions.md) |
 | API 계약 | [docs/api/01-api-contract.md](docs/api/01-api-contract.md) |
 | 배포 운영 Runbook | [docs/ops/01-deployment-runbook.md](docs/ops/01-deployment-runbook.md) |
+| 남은 작업 로드맵 | [docs/superpowers/plans/2026-05-10-remaining-work-roadmap.md](docs/superpowers/plans/2026-05-10-remaining-work-roadmap.md) |
 | MVP 구현 계획 | [docs/superpowers/plans/2026-05-01-mvp-implementation-plan.md](docs/superpowers/plans/2026-05-01-mvp-implementation-plan.md) |
 | 제품 크롤링 및 성분 안전성 자동화 | [docs/superpowers/specs/2026-05-01-product-ingestion-ingredient-safety-design.md](docs/superpowers/specs/2026-05-01-product-ingestion-ingredient-safety-design.md) |
 | 관리자 검수 콘솔 UX | [docs/superpowers/specs/2026-05-01-admin-review-console-ux-spec.md](docs/superpowers/specs/2026-05-01-admin-review-console-ux-spec.md) |
@@ -215,6 +216,8 @@ k-beauty-guide/
 
 ## 7. 다음 액션 아이템
 
+현재 남은 구현 순서와 phase별 검증 기준은 [Remaining Work Roadmap](docs/superpowers/plans/2026-05-10-remaining-work-roadmap.md)을 canonical source로 따른다. 아래 목록은 제품 기획 관점의 요약 체크리스트이며, 세부 실행 순서는 로드맵 문서가 우선한다.
+
 - [x] React Router v6 마이그레이션
 - [x] 제품 상세 페이지 1차 구현
 - [x] Supabase 공개 목록/상세/성분 analyzer client 연결
@@ -224,8 +227,12 @@ k-beauty-guide/
 - [x] 홈 검색창 동작 구현 (Products 페이지로 쿼리 전달)
 - [x] 제품 상세에 source evidence, 추천 제품, 구매 링크, SEO metadata 추가
 - [x] Shopping Map 정적 매장 데이터/좌표 준비 (실제 지도 API 연동은 Phase 2)
-- [ ] Local Supabase stack에서 migration/seed/function smoke 검증
+- [x] Local Supabase stack에서 migration/seed/analyzer smoke 검증
+- [ ] 나머지 Edge Functions와 crawler lease flow smoke를 `npm run smoke:supabase:local`에 통합
 - [x] 성분 파서·안전성 rule engine을 frontend fallback과 Edge Function 양쪽에 일관되게 정리
 - [x] 관리자 검수 큐 shell 구현
+- [ ] 제품 이미지/상세 설명 후보 수집과 review payload 생성 구현
+- [ ] 관리자 검수 action의 DB mutation과 audit log 연결
+- [ ] crawler runtime wiring으로 fixture/seed 기반 end-to-end 실행
 - [ ] source별 크롤링 dry run 검증 후 connector 추가
 - [ ] Vercel 배포 세팅
