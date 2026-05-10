@@ -1,0 +1,17 @@
+export const fallbackProducts = [
+  { id: "cosrx-snail-96-mucin-power-essence", slug: "cosrx-snail-96-mucin-power-essence", name: "COSRX Snail 96 Mucin Power Essence", brand: "COSRX", tag: "Bestseller", price: "₩18,000", skin: "All Skin", category: "Serum", color: "#FFE4EC", emoji: "🐌", rating: 4.9, reviews: 12400 },
+  { id: "laneige-lip-sleeping-mask", slug: "laneige-lip-sleeping-mask", name: "Laneige Lip Sleeping Mask", brand: "Laneige", tag: "K-Icon", price: "₩22,000", skin: "Dry Lips", category: "Moisturizer", color: "#FFD6E7", emoji: "💋", rating: 4.8, reviews: 9800 },
+  { id: "some-by-mi-aha-bha-pha-toner", slug: "some-by-mi-aha-bha-pha-toner", name: "Some By Mi AHA BHA PHA Toner", brand: "Some By Mi", tag: "Viral", price: "₩16,000", skin: "Oily/Acne", category: "Toner", color: "#E8F4FD", emoji: "🌿", rating: 4.7, reviews: 8200 },
+  { id: "innisfree-green-tea-hyaluronic-serum", slug: "innisfree-green-tea-hyaluronic-serum", name: "Innisfree Green Tea Hyaluronic Serum", brand: "Innisfree", tag: "Natural", price: "₩25,000", skin: "Sensitive", category: "Serum", color: "#E8F8E8", emoji: "🍵", rating: 4.6, reviews: 6100 },
+  { id: "etude-house-soonjung-toner", slug: "etude-house-soonjung-toner", name: "Etude House SoonJung Toner", brand: "Etude House", tag: "Soothing", price: "₩14,000", skin: "Sensitive", category: "Toner", color: "#FFF3E0", emoji: "🌾", rating: 4.7, reviews: 5400 },
+  { id: "sulwhasoo-first-care-serum", slug: "sulwhasoo-first-care-serum", name: "Sulwhasoo First Care Serum", brand: "Sulwhasoo", tag: "Luxury", price: "₩89,000", skin: "Mature", category: "Serum", color: "#F3E5F5", emoji: "🌺", rating: 4.9, reviews: 4300 },
+  { id: "tonymoly-tako-pore-blackhead", slug: "tonymoly-tako-pore-blackhead", name: "TONYMOLY Tako Pore Blackhead", brand: "TONYMOLY", tag: "Pore Care", price: "₩9,000", skin: "Oily", category: "Cleanser", color: "#E0F7FA", emoji: "🐙", rating: 4.5, reviews: 7700 },
+  { id: "missha-time-revolution-toner", slug: "missha-time-revolution-toner", name: "Missha Time Revolution Toner", brand: "Missha", tag: "Hydrating", price: "₩21,000", skin: "Dry", category: "Toner", color: "#FBE9E7", emoji: "⏰", rating: 4.6, reviews: 5900 },
+  { id: "purito-centella-unscented-serum", slug: "purito-centella-unscented-serum", name: "Purito Centella Unscented Serum", brand: "Purito", tag: "Gentle", price: "₩19,000", skin: "All Skin", category: "Serum", color: "#F1F8E9", emoji: "🌱", rating: 4.8, reviews: 6600 },
+  { id: "klairs-midnight-blue-calming-cream", slug: "klairs-midnight-blue-calming-cream", name: "Klairs Midnight Blue Calming Cream", brand: "Klairs", tag: "Calming", price: "₩28,000", skin: "Sensitive", category: "Moisturizer", color: "#E8EAF6", emoji: "🌙", rating: 4.7, reviews: 4800 },
+  { id: "banila-co-clean-it-zero-balm", slug: "banila-co-clean-it-zero-balm", name: "Banila Co Clean It Zero Balm", brand: "Banila Co", tag: "Cleansing", price: "₩17,000", skin: "All Skin", category: "Cleanser", color: "#FFF8E1", emoji: "🧸", rating: 4.8, reviews: 11200 },
+  { id: "anua-heartleaf-pore-control-serum", slug: "anua-heartleaf-pore-control-serum", name: "ANUA Heartleaf Pore Control Serum", brand: "ANUA", tag: "Trending", price: "₩23,000", skin: "Oily/Combo", category: "Serum", color: "#F9FBE7", emoji: "🍀", rating: 4.9, reviews: 8900 },
+];
+
+export const productCategories = ["All", "Toner", "Serum", "Moisturizer", "Cleanser", "Sunscreen", "Eye Cream", "Essence"];
+export const skinTypes = ["All Skin", "Dry", "Oily", "Sensitive", "Combination", "Mature"];

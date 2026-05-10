@@ -16,6 +16,9 @@
 .safety-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 .safety-badge.safe { background: #E8F5E9; color: #388E3C; }
 .safety-badge.caution { background: #FFF3E0; color: #E65100; }
+.safety-badge.review { background: #FFF0F5; color: #B83E6C; }
+.scan-btn:disabled { opacity: .55; cursor: not-allowed; }
+.analyzer-note { margin-top: 10px; color: #888; font-size: 12px; line-height: 1.5; }
 .ing-search-row { margin-bottom: 16px; }
 .ing-search { width: 100%; border: 2px solid #FFE0EC; border-radius: 50px; padding: 12px 20px; font-size: 14px; outline: none; font-family: inherit; color: #333; }
 .ing-search:focus { border-color: #FF6B9D; }

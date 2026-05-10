@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import "./Navbar.css";
 
 const NAV_LINKS = [
@@ -11,6 +12,11 @@ const NAV_LINKS = [
 
 export default function Navbar({ activePage, setActivePage }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <nav className="navbar">

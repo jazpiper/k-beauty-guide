@@ -1,39 +1,30 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { productCategories, skinTypes } from "../data/products";
+import { useProducts } from "../hooks/useProducts";
 import "./Products.css";
 
-const ALL_PRODUCTS = [
-  { name: "COSRX Snail 96 Mucin Power Essence", brand: "COSRX", tag: "Bestseller", price: "₩18,000", skin: "All Skin", category: "Serum", color: "#FFE4EC", emoji: "🐌", rating: 4.9, reviews: 12400 },
-  { name: "Laneige Lip Sleeping Mask", brand: "Laneige", tag: "K-Icon", price: "₩22,000", skin: "Dry Lips", category: "Moisturizer", color: "#FFD6E7", emoji: "💋", rating: 4.8, reviews: 9800 },
-  { name: "Some By Mi AHA BHA PHA Toner", brand: "Some By Mi", tag: "Viral", price: "₩16,000", skin: "Oily/Acne", category: "Toner", color: "#E8F4FD", emoji: "🌿", rating: 4.7, reviews: 8200 },
-  { name: "Innisfree Green Tea Hyaluronic Serum", brand: "Innisfree", tag: "Natural", price: "₩25,000", skin: "Sensitive", category: "Serum", color: "#E8F8E8", emoji: "🍵", rating: 4.6, reviews: 6100 },
-  { name: "Etude House SoonJung Toner", brand: "Etude House", tag: "Soothing", price: "₩14,000", skin: "Sensitive", category: "Toner", color: "#FFF3E0", emoji: "🌾", rating: 4.7, reviews: 5400 },
-  { name: "Sulwhasoo First Care Serum", brand: "Sulwhasoo", tag: "Luxury", price: "₩89,000", skin: "Mature", category: "Serum", color: "#F3E5F5", emoji: "🌺", rating: 4.9, reviews: 4300 },
-  { name: "TONYMOLY Tako Pore Blackhead", brand: "TONYMOLY", tag: "Pore Care", price: "₩9,000", skin: "Oily", category: "Cleanser", color: "#E0F7FA", emoji: "🐙", rating: 4.5, reviews: 7700 },
-  { name: "Missha Time Revolution Toner", brand: "Missha", tag: "Hydrating", price: "₩21,000", skin: "Dry", category: "Toner", color: "#FBE9E7", emoji: "⏰", rating: 4.6, reviews: 5900 },
-  { name: "Purito Centella Unscented Serum", brand: "Purito", tag: "Gentle", price: "₩19,000", skin: "All Skin", category: "Serum", color: "#F1F8E9", emoji: "🌱", rating: 4.8, reviews: 6600 },
-  { name: "Klairs Midnight Blue Calming Cream", brand: "Klairs", tag: "Calming", price: "₩28,000", skin: "Sensitive", category: "Moisturizer", color: "#E8EAF6", emoji: "🌙", rating: 4.7, reviews: 4800 },
-  { name: "Banila Co Clean It Zero Balm", brand: "Banila Co", tag: "Cleansing", price: "₩17,000", skin: "All Skin", category: "Cleanser", color: "#FFF8E1", emoji: "🧸", rating: 4.8, reviews: 11200 },
-  { name: "ANUA Heartleaf Pore Control Serum", brand: "ANUA", tag: "Trending", price: "₩23,000", skin: "Oily/Combo", category: "Serum", color: "#F9FBE7", emoji: "🍀", rating: 4.9, reviews: 8900 },
-];
-
-const CATEGORIES = ["All", "Toner", "Serum", "Moisturizer", "Cleanser", "Sunscreen", "Eye Cream"];
-const SKIN_TYPES = ["All Skin", "Dry", "Oily", "Sensitive", "Combination", "Mature"];
-
 export default function Products() {
+  const navigate = useNavigate();
+  const { products, source, error, loading } = useProducts();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeSkin, setActiveSkin] = useState("All Skin");
   const [liked, setLiked] = useState({});
   const [sortBy, setSortBy] = useState("popular");
 
-  const toggleLike = (i) => setLiked((p) => ({ ...p, [i]: !p[i] }));
+  const toggleLike = (id) => setLiked((p) => ({ ...p, [id]: !p[id] }));
 
-  const filtered = ALL_PRODUCTS.filter((p) => {
+  const filtered = products.filter((p) => {
     const matchCat = activeCategory === "All" || p.category === activeCategory;
     const matchSkin = activeSkin === "All Skin" || p.skin.includes(activeSkin);
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.brand.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSkin && matchSearch;
-  }).sort((a, b) => sortBy === "popular" ? b.reviews - a.reviews : sortBy === "rating" ? b.rating - a.rating : 0);
+  }).sort((a, b) => {
+    if (sortBy === "popular") return (b.reviews ?? 0) - (a.reviews ?? 0);
+    if (sortBy === "rating") return (b.rating ?? 0) - (a.rating ?? 0);
+    return 0;
+  });
 
   return (
     <div className="products-page">
@@ -49,16 +40,21 @@ export default function Products() {
       <div className="products-body">
         {/* FILTERS */}
         <aside className="filters">
+          <div className="data-status">
+            <span className={`source-dot ${source}`}></span>
+            {source === "supabase" ? "Live Supabase" : "Static fallback"}
+          </div>
+          {error && <div className="data-error">Fallback reason: {error}</div>}
           <div className="filter-group">
             <div className="filter-title">Category</div>
-            {CATEGORIES.map((c) => (
+            {productCategories.map((c) => (
               <button key={c} onClick={() => setActiveCategory(c)}
                 className={`filter-btn ${activeCategory === c ? "active" : ""}`}>{c}</button>
             ))}
           </div>
           <div className="filter-group">
             <div className="filter-title">Skin Type</div>
-            {SKIN_TYPES.map((s) => (
+            {skinTypes.map((s) => (
               <button key={s} onClick={() => setActiveSkin(s)}
                 className={`filter-btn ${activeSkin === s ? "active" : ""}`}>{s}</button>
             ))}
@@ -72,29 +68,42 @@ export default function Products() {
 
         {/* GRID */}
         <div className="products-main">
-          <div className="results-info">{filtered.length} products found</div>
+          <div className="results-info">{loading ? "Loading products..." : `${filtered.length} products found`}</div>
           <div className="grid">
-            {filtered.map((p, i) => (
-              <div key={i} className="product-card">
+            {filtered.map((p) => (
+              <div key={p.id || p.slug} className="product-card">
                 <div className="product-img" style={{ background: p.color }}>
-                  <span className="product-emoji">{p.emoji}</span>
+                  {p.primaryImageUrl ? (
+                    <img className="product-photo" src={p.primaryImageUrl} alt={p.name} />
+                  ) : (
+                    <span className="product-emoji">{p.emoji}</span>
+                  )}
                   <span className="product-tag">{p.tag}</span>
-                  <button onClick={() => toggleLike(i)} className="like-btn">{liked[i] ? "❤️" : "🤍"}</button>
+                  <button onClick={() => toggleLike(p.id || p.slug)} className="like-btn">{liked[p.id || p.slug] ? "❤️" : "🤍"}</button>
                 </div>
                 <div className="product-info">
                   <div className="product-brand">{p.brand}</div>
                   <div className="product-name">{p.name}</div>
                   <div className="product-rating">
-                    {"⭐".repeat(Math.floor(p.rating))} <span>{p.rating} ({p.reviews.toLocaleString()})</span>
+                    {p.rating ? (
+                      <>
+                        {"⭐".repeat(Math.floor(p.rating))} <span>{p.rating} ({p.reviews.toLocaleString()})</span>
+                      </>
+                    ) : (
+                      <span>{p.safetyFlagCount > 0 ? `${p.safetyFlagCount} ingredient note${p.safetyFlagCount > 1 ? "s" : ""}` : "No safety flags yet"}</span>
+                    )}
                   </div>
                   <div className="product-meta">
                     <span className="skin-badge">👤 {p.skin}</span>
                     <span className="price">{p.price}</span>
                   </div>
-                  <button className="detail-btn">View Details</button>
+                  <button className="detail-btn" onClick={() => navigate(`/products/${p.slug || p.id}`)}>View Details</button>
                 </div>
               </div>
             ))}
+            {!loading && filtered.length === 0 && (
+              <div className="empty-state">No products match the current filters.</div>
+            )}
           </div>
         </div>
       </div>

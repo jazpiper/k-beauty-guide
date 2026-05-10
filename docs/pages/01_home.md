@@ -107,10 +107,10 @@
 
 | 데이터 | 출처 | 비고 |
 |---|---|---|
-| 트렌딩 제품 | `data/products.json` | Phase 1: 정적, Phase 2: API |
+| 트렌딩 제품 | `src/data/products.js` | MVP: 정적 fallback, Supabase 설정 시 API |
 | 카테고리 목록 | 상수 | Products 페이지와 동기화 필요 |
 | 검색 인덱스 | 제품명 + 브랜드 + 성분명 | 통합 검색을 위해 병합 필요 |
-| 추천 태그 | `data/trending-tags.json` | Phase 1: 정적 |
+| 추천 태그 | `src/data/products.js`와 `src/data/ingredients.js`에서 파생 | MVP: 정적 fallback |
 
 ---
 

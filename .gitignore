@@ -2,3 +2,8 @@ node_modules
 .DS_Store
 build
 .env
+.env.local
+.env.*.local
+.claude/settings.local.json
+supabase/.temp/
+supabase/.branches/

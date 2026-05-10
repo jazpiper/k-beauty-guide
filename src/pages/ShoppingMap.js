@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./ShoppingMap.css";
 
 const SPOTS = [
@@ -13,8 +14,6 @@ const SPOTS = [
 
 const AREAS = ["All", "Myeongdong", "Hongdae", "Gangnam", "Jung-gu", "Dongdaemun"];
 const TYPES = ["All", "Drugstore", "Brand Store", "Duty Free", "Department Store", "Multi-brand", "Market"];
-
-import { useState } from "react";
 
 export default function ShoppingMap() {
   const [activeArea, setActiveArea] = useState("All");

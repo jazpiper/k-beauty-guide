@@ -1,2 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 .app { font-family: 'Segoe UI', sans-serif; background: #FFF9FB; min-height: 100vh; color: #333; }
+.data-status { display: inline-flex; align-items: center; gap: 7px; color: #777; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+.source-dot { width: 8px; height: 8px; border-radius: 999px; background: #bbb; display: inline-block; }
+.source-dot.supabase { background: #22C55E; box-shadow: 0 0 0 4px #22C55E18; }
+.source-dot.static { background: #F59E0B; box-shadow: 0 0 0 4px #F59E0B18; }
+.data-error { color: #A15C00; background: #FFF7E6; border: 1px solid #FFE0A3; border-radius: 10px; padding: 8px 10px; font-size: 11px; line-height: 1.5; margin: -4px 0 16px; }
+.empty-state { grid-column: 1 / -1; border: 1px dashed #FFD1E0; border-radius: 16px; padding: 28px; color: #999; text-align: center; background: #fff; }
