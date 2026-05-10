@@ -10,15 +10,15 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
+    "build": "node ./node_modules/react-scripts/bin/react-scripts.js build",
+    "test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
     "supabase:status": "npx supabase status",
     "supabase:reset": "npx supabase db reset",
     "supabase:functions:serve": "npx supabase functions serve",
     "supabase:functions:serve:analyzer": "npx supabase functions serve analyze-ingredient-text --no-verify-jwt",
     "smoke:supabase:analyzer": "node scripts/smoke-supabase-analyzer.mjs",
-    "eject": "react-scripts eject"
+    "eject": "node ./node_modules/react-scripts/bin/react-scripts.js eject"
   },
   "eslintConfig": {
     "extends": [
