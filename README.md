@@ -15,6 +15,17 @@ npm start
 npm run build
 ```
 
+## Docker 검증
+
+Windows 로컬 Node/CRA 문제가 있을 때는 Docker Desktop + Node 20 컨테이너에서 분리 검증한다.
+
+```bash
+docker build -t k-beauty-guide .
+docker run --rm k-beauty-guide npm run build
+docker run --rm k-beauty-guide npm test -- --watchAll=false --runInBand
+docker compose up app
+```
+
 ## 백엔드 로컬 확인
 
 ```bash

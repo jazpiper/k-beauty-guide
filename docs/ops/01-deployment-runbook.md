@@ -98,6 +98,24 @@ Compiled successfully.
 
 If `react-scripts: command not found` appears, run `npm install` first.
 
+### Docker Frontend Verification
+
+Use this path when Windows local Node/npm behavior differs from CI or CRA hangs under the host runtime.
+
+```bash
+docker build -t k-beauty-guide .
+docker run --rm k-beauty-guide npm run build
+docker run --rm k-beauty-guide npm test -- --watchAll=false --runInBand
+```
+
+For a containerized dev server:
+
+```bash
+docker compose up app
+```
+
+Then open `http://localhost:3000`.
+
 ## 5. Local Supabase Verification
 
 Run after `supabase/config.toml`, migrations, seed, and functions exist:
