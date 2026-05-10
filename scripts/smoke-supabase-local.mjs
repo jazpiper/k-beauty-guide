@@ -34,13 +34,27 @@ try {
   });
   const anonKey = parseEnvValue(status.stdout, "ANON_KEY") ||
     parseEnvValue(status.stdout, "SUPABASE_ANON_KEY");
+  const serviceRoleKey = parseEnvValue(status.stdout, "SERVICE_ROLE_KEY") ||
+    parseEnvValue(status.stdout, "SUPABASE_SERVICE_ROLE_KEY");
 
   if (!anonKey) {
     throw new Error("Could not read local Supabase anon key from `supabase status -o env`.");
   }
 
+  if (!serviceRoleKey) {
+    throw new Error("Could not read local Supabase service role key from `supabase status -o env`.");
+  }
+
   run("npm", ["run", "smoke:supabase:analyzer"], {
     env: { ...process.env, SUPABASE_ANON_KEY: anonKey },
+  });
+
+  run("npm", ["run", "smoke:supabase:functions"], {
+    env: {
+      ...process.env,
+      SUPABASE_ANON_KEY: anonKey,
+      SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
+    },
   });
 
   log("Supabase local smoke passed.");

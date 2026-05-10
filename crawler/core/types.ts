@@ -54,6 +54,15 @@ export type ProductImageCandidate = {
   url: string;
   source: "json_ld" | "open_graph" | "shopify_product_json" | "dom_selector";
   selector?: string;
+  sourceEvidence?: string;
+  candidateRole?: "primary" | "gallery" | "swatch" | "unknown";
+  altText?: string;
+  width?: number;
+  height?: number;
+  position?: number;
+  contentType?: string;
+  reviewStatus?: "needs_review" | "rejected" | "approved";
+  imageStoragePolicy?: "remote_url_only";
   confidence?: number;
 };
 
@@ -61,6 +70,10 @@ export type ProductTextCandidate = {
   text: string;
   source: "json_ld" | "open_graph" | "shopify_product_json" | "dom_selector";
   selector?: string;
+  sourceEvidence?: string;
+  fieldType?: "description" | "benefit" | "claim" | "how_to_use" | "unknown";
+  riskFlags?: string[];
+  reviewStatus?: "needs_review" | "rejected" | "approved";
   confidence?: number;
 };
 

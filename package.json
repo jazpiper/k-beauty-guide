@@ -13,12 +13,15 @@
     "start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
     "build": "node ./node_modules/react-scripts/bin/react-scripts.js build",
     "test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
+    "test:crawler": "node crawler/tests/product-media-description-ingestion.test.cjs && node crawler/tests/local-fixture-runtime.test.cjs",
     "supabase:status": "npx supabase status",
     "supabase:reset": "npx supabase db reset",
     "supabase:functions:serve": "npx supabase functions serve",
     "supabase:functions:serve:analyzer": "npx supabase functions serve analyze-ingredient-text --no-verify-jwt",
     "smoke:supabase:analyzer": "node scripts/smoke-supabase-analyzer.mjs",
+    "smoke:supabase:functions": "node scripts/smoke-supabase-functions.mjs",
     "smoke:supabase:local": "node scripts/smoke-supabase-local.mjs",
+    "release:local": "node scripts/release-gate-local.mjs",
     "eject": "node ./node_modules/react-scripts/bin/react-scripts.js eject"
   },
   "eslintConfig": {

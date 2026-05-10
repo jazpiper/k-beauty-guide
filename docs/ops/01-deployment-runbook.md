@@ -80,6 +80,14 @@ else
 fi
 ```
 
+For a local Phase 5 release-readiness gate, run the non-credentialed wrapper:
+
+```bash
+npm run release:local
+```
+
+This command only scans local browser/template files for service role references and verifies that the documented build, test, and smoke commands remain referenced. It does not link, migrate, deploy, or call live Supabase/Vercel projects. Staging Supabase migration/function deploy and Vercel preview deploy require linked project credentials before they can run.
+
 ## 4. Local Frontend Verification
 
 Run from repo root:

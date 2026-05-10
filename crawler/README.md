@@ -57,6 +57,12 @@ source policy -> pause check -> rate limiter -> robots check -> path check
   -> core fetcher -> snapshot store -> connector parser -> review pipeline
 ```
 
+The local fixture runtime in `crawler/runtime/localFixtureRuntime.ts` exercises the
+task-like flow without network access: it claims one seeded fixture task, stores the
+checked-in HTML snapshot metadata, runs product media/description extraction,
+creates review payloads, rejects a stale lease completion attempt, and returns a
+completion summary. Live crawling remains disabled in that runtime.
+
 ## Safety Rules
 
 - Do not crawl checkout, cart, account, order, search, filter, or sort paths.
@@ -64,5 +70,10 @@ source policy -> pause check -> rate limiter -> robots check -> path check
 - Pause sources on 403, 429, captcha, or challenge signals.
 - Treat `confidenceScore` as an internal review-priority signal, not a publish
   decision.
+- Product image and description extraction stores official remote image URLs
+  only. The MVP crawler does not download, transform, rehost, or auto-publish
+  product media or brand copy.
+- Product media/description candidates must preserve source evidence and flow
+  into review payloads before any normalized public catalog write.
 - Keep browser automation and commerce live crawling out of the MVP crawler
   module.
