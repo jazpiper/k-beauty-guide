@@ -159,6 +159,30 @@ Latest local check (2026-05-03 KST):
 | RPC smoke | `get_public_product_detail('cosrx-advanced-snail-96-mucin-power-essence')` returned a detail payload |
 | Analyzer smoke | `Water, Fragrance, Hyaluronic Acid` returned 3 parsed rows, 1 unmatched token, and 1 fragrance flag |
 
+### Windows Docker bind mount caveat
+
+If the repo lives under a cloud-drive, non-ASCII, or space-heavy Windows path, Docker Desktop can start the Edge Runtime while mounting `supabase/functions` as an empty directory. The symptom is:
+
+```text
+InvalidWorkerCreation: worker boot error: failed to bootstrap runtime: failed to determine entrypoint
+```
+
+Check the mounted files:
+
+```powershell
+docker exec supabase_edge_runtime_k-beauty-guide-local find supabase/functions -maxdepth 2 -type f -name index.ts -print
+```
+
+If this prints nothing, stop the stack and run Supabase from an ASCII local mirror:
+
+```powershell
+npx supabase stop --no-backup
+npx supabase start --workdir C:\codex-temp\k-beauty-guide-supabase-smoke
+npx supabase db reset --workdir C:\codex-temp\k-beauty-guide-supabase-smoke
+$env:SUPABASE_ANON_KEY = ((npx supabase status --workdir C:\codex-temp\k-beauty-guide-supabase-smoke -o env) | Select-String '^ANON_KEY=').ToString().Split('=', 2)[1].Trim('"')
+npm run smoke:supabase:analyzer
+```
+
 ## 6. Local Edge Function Smoke
 
 Use a cleanup trap and curl timeout so smoke tests do not hang or leave a server process running.

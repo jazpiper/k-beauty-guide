@@ -33,6 +33,15 @@ npm run supabase:status
 npm run supabase:reset
 ```
 
+기본 `supabase start` Edge Function 런타임은 JWT 검증을 켠다. analyzer 스모크는 local anon key를 환경변수로 넘기면 인증 헤더를 붙여 호출한다.
+
+```powershell
+$env:SUPABASE_ANON_KEY = ((npx supabase status -o env) | Select-String '^ANON_KEY=').ToString().Split('=', 2)[1].Trim('"')
+npm run smoke:supabase:analyzer
+```
+
+Windows에서 프로젝트가 Google Drive/OneDrive 같은 클라우드 드라이브 또는 한글/공백 경로 아래 있으면 Docker Desktop bind mount가 `supabase/functions`를 빈 디렉터리로 마운트할 수 있다. 이때 Edge Function 호출이 `failed to determine entrypoint`로 실패하면 `C:\codex-temp\...`처럼 ASCII 로컬 경로에 임시 미러를 만든 뒤 `npx supabase start --workdir <mirror>`로 검증한다.
+
 ## 현재 실행 스택
 - React 18
 - React Router v6

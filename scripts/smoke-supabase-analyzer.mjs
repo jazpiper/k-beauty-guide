@@ -1,9 +1,16 @@
 const endpoint = process.env.SUPABASE_FUNCTIONS_URL ||
   "http://127.0.0.1:54321/functions/v1/analyze-ingredient-text";
+const supabaseJwt = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY;
+const headers = { "Content-Type": "application/json" };
+
+if (supabaseJwt) {
+  headers.Authorization = `Bearer ${supabaseJwt}`;
+  headers.apikey = supabaseJwt;
+}
 
 const response = await fetch(endpoint, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers,
   body: JSON.stringify({ ingredientText: "Water, Fragrance, Hyaluronic Acid" }),
   signal: AbortSignal.timeout(10_000),
 });
