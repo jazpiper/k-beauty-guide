@@ -6,6 +6,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Ingredients from "./pages/Ingredients";
 import ShoppingMap from "./pages/ShoppingMap";
 import SkinQuiz from "./pages/SkinQuiz";
+import AdminReview from "./pages/AdminReview";
 import "./App.css";
 
 const PAGE_ROUTES = {
@@ -14,6 +15,7 @@ const PAGE_ROUTES = {
   Ingredients: "/ingredients",
   "Shopping Map": "/shopping-map",
   "Skin Quiz": "/skin-quiz",
+  "Admin Review": "/admin-review",
 };
 
 function AppShell() {
@@ -36,6 +38,7 @@ function AppShell() {
           <Route path="/ingredients" element={<Ingredients />} />
           <Route path="/shopping-map" element={<ShoppingMap />} />
           <Route path="/skin-quiz" element={<SkinQuiz />} />
+          <Route path="/admin-review" element={<AdminReview />} />
           <Route path="*" element={<Home setActivePage={setActivePage} />} />
         </Routes>
       </main>
@@ -48,6 +51,7 @@ function getActivePage(pathname) {
   if (pathname.startsWith("/ingredients")) return "Ingredients";
   if (pathname.startsWith("/shopping-map")) return "Shopping Map";
   if (pathname.startsWith("/skin-quiz")) return "Skin Quiz";
+  if (pathname.startsWith("/admin-review")) return "Admin Review";
   return "Home";
 }
 

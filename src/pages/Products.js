@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { productCategories, skinTypes } from "../data/products";
 import { useProducts } from "../hooks/useProducts";
 import "./Products.css";
 
 export default function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { products, source, error, loading } = useProducts();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -13,12 +14,49 @@ export default function Products() {
   const [liked, setLiked] = useState({});
   const [sortBy, setSortBy] = useState("popular");
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearch(params.get("q") ?? "");
+    const categoryParam = params.get("category") ?? "All";
+    setActiveCategory(productCategories.includes(categoryParam) ? categoryParam : "All");
+  }, [location.search]);
+
   const toggleLike = (id) => setLiked((p) => ({ ...p, [id]: !p[id] }));
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(location.search);
+    const query = search.trim();
+    if (query) {
+      params.set("q", query);
+    } else {
+      params.delete("q");
+    }
+    if (activeCategory && activeCategory !== "All") {
+      params.set("category", activeCategory);
+    } else {
+      params.delete("category");
+    }
+    navigate({
+      pathname: "/products",
+      search: params.toString() ? `?${params.toString()}` : "",
+    });
+  };
+
+  const matchesSkin = (productSkin, filterSkin) => {
+    if (filterSkin === "All Skin") return true;
+    const skinValue = String(productSkin ?? "").toLowerCase();
+    const filterValue = filterSkin.toLowerCase();
+    if (skinValue.includes(filterValue)) return true;
+    if (filterValue === "combination") return skinValue.includes("combo");
+    return false;
+  };
 
   const filtered = products.filter((p) => {
     const matchCat = activeCategory === "All" || p.category === activeCategory;
-    const matchSkin = activeSkin === "All Skin" || p.skin.includes(activeSkin);
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.brand.toLowerCase().includes(search.toLowerCase());
+    const matchSkin = matchesSkin(p.skin, activeSkin);
+    const searchQuery = search.trim().toLowerCase();
+    const searchHaystack = [p.name, p.brand, p.category, p.skin, p.tag].join(" ").toLowerCase();
+    const matchSearch = !searchQuery || searchHaystack.includes(searchQuery);
     return matchCat && matchSkin && matchSearch;
   }).sort((a, b) => {
     if (sortBy === "popular") return (b.reviews ?? 0) - (a.reviews ?? 0);
@@ -31,10 +69,16 @@ export default function Products() {
       <div className="products-hero">
         <h1>🛍️ K-Beauty <span className="pink">Products</span></h1>
         <p>Explore the best Korean cosmetics loved by beauty fans worldwide</p>
-        <div className="search-bar">
+        <form className="search-bar" onSubmit={handleSearchSubmit}>
           <span>🔍</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or brands..." />
-        </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products or brands..."
+            aria-label="Search products by name, brand, category, skin, or tag"
+          />
+          <button type="submit" className="search-btn">Search</button>
+        </form>
       </div>
 
       <div className="products-body">
@@ -48,21 +92,21 @@ export default function Products() {
           <div className="filter-group">
             <div className="filter-title">Category</div>
             {productCategories.map((c) => (
-              <button key={c} onClick={() => setActiveCategory(c)}
+              <button key={c} type="button" onClick={() => setActiveCategory(c)}
                 className={`filter-btn ${activeCategory === c ? "active" : ""}`}>{c}</button>
             ))}
           </div>
           <div className="filter-group">
             <div className="filter-title">Skin Type</div>
             {skinTypes.map((s) => (
-              <button key={s} onClick={() => setActiveSkin(s)}
+              <button key={s} type="button" onClick={() => setActiveSkin(s)}
                 className={`filter-btn ${activeSkin === s ? "active" : ""}`}>{s}</button>
             ))}
           </div>
           <div className="filter-group">
             <div className="filter-title">Sort By</div>
-            <button onClick={() => setSortBy("popular")} className={`filter-btn ${sortBy === "popular" ? "active" : ""}`}>Most Popular</button>
-            <button onClick={() => setSortBy("rating")} className={`filter-btn ${sortBy === "rating" ? "active" : ""}`}>Highest Rated</button>
+            <button type="button" onClick={() => setSortBy("popular")} className={`filter-btn ${sortBy === "popular" ? "active" : ""}`}>Most Popular</button>
+            <button type="button" onClick={() => setSortBy("rating")} className={`filter-btn ${sortBy === "rating" ? "active" : ""}`}>Highest Rated</button>
           </div>
         </aside>
 
@@ -87,7 +131,7 @@ export default function Products() {
                   <div className="product-rating">
                     {p.rating ? (
                       <>
-                        {"⭐".repeat(Math.floor(p.rating))} <span>{p.rating} ({p.reviews.toLocaleString()})</span>
+                        {"⭐".repeat(Math.floor(p.rating))} <span>{p.rating} ({(p.reviews ?? 0).toLocaleString()})</span>
                       </>
                     ) : (
                       <span>{p.safetyFlagCount > 0 ? `${p.safetyFlagCount} ingredient note${p.safetyFlagCount > 1 ? "s" : ""}` : "No safety flags yet"}</span>

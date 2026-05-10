@@ -85,33 +85,42 @@ function mapProductRow(row, index) {
 function mapProductDetail(detail, source) {
   const flags = detail.safetyReport?.flags ?? [];
   const safetyFlagCount = flags.length;
+  const detailProduct = detail.product || detail;
+  const resolvedCategory = detailProduct.category || detail.category || "Product";
+  const resolvedPriceKrw = detailProduct.priceKrw ?? detail.priceKrw;
+  const resolvedCurrency = detailProduct.currency ?? detail.currency;
+  const resolvedPublishedAt = detailProduct.publishedAt ?? detail.publishedAt;
+  const resolvedUpdatedAt = detailProduct.updatedAt ?? detail.updatedAt;
 
   return {
     product: {
-      id: detail.id,
-      slug: detail.slug,
-      name: detail.name,
-      brand: detail.brand?.name ?? "Unknown Brand",
-      brandName: detail.brand?.name ?? "Unknown Brand",
-      brandOfficialUrl: detail.brand?.officialUrl,
-      category: detail.category || "Product",
-      description: detail.description || "Product detail is being reviewed.",
-      price: formatKrw(detail.priceKrw, detail.currency),
-      priceKrw: detail.priceKrw,
-      currency: detail.currency,
-      primaryImageUrl: detail.primaryImageUrl,
-      emoji: CATEGORY_EMOJI[detail.category] || "🌸",
+      id: detailProduct.id,
+      slug: detailProduct.slug,
+      name: detailProduct.name,
+      brand: detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
+      brandName: detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
+      brandOfficialUrl: detailProduct.brand?.officialUrl ?? detailProduct.brandOfficialUrl,
+      price: formatKrw(resolvedPriceKrw, resolvedCurrency),
+      priceKrw: resolvedPriceKrw,
+      currency: resolvedCurrency,
+      primaryImageUrl: detailProduct.primaryImageUrl ?? detail.primaryImageUrl,
+      category: resolvedCategory,
+      skin: detailProduct.skin || "All Skin",
+      description: detailProduct.description || detail.description || "Product detail is being reviewed.",
+      emoji: CATEGORY_EMOJI[resolvedCategory] || "🌸",
       tag: safetyFlagCount > 0 ? `${safetyFlagCount} safety note${safetyFlagCount > 1 ? "s" : ""}` : "Published",
       safetyFlagCount,
       highestSeverity: getHighestSeverity(flags),
-      publishedAt: detail.publishedAt,
-      updatedAt: detail.updatedAt,
+      publishedAt: resolvedPublishedAt,
+      updatedAt: resolvedUpdatedAt,
+      buyLinks: detailProduct.buyLinks ?? detailProduct.purchaseLinks ?? detail.buyLinks ?? detail.purchaseLinks ?? [],
       source,
     },
     ingredients: (detail.ingredients ?? []).map(mapDetailIngredient),
     flags: flags.map(mapSafetyFlag),
     sources: detail.sources ?? [],
     images: detail.images ?? [],
+    recommendedProducts: (detail.recommendedProducts ?? detail.relatedProducts ?? []).map(mapRecommendedProduct).filter(Boolean),
     safetyReport: detail.safetyReport ?? { flags: [] },
     source,
   };
@@ -186,6 +195,7 @@ function buildFallbackProductDetail(slug) {
       description: `${product.name} is available as static fallback content until Supabase product detail data is configured.`,
       safetyFlagCount: flags.length,
       highestSeverity: getHighestSeverity(flags),
+      buyLinks: product.buyLinks ?? [],
       source: "static",
     },
     ingredients: ingredients.map((ingredient, index) => ({
@@ -202,8 +212,19 @@ function buildFallbackProductDetail(slug) {
       tags: ingredient.tags,
     })),
     flags,
-    sources: [],
+    sources: [
+      {
+        label: "Fallback product profile",
+        url: product.brandOfficialUrl || `https://www.google.com/search?q=${encodeURIComponent(`${product.brand} ${product.name}`)}`,
+        evidence: "Displayed from local fallback profile while live source data is unavailable.",
+      },
+      ...flags.map((flag) => ({
+        label: `${flag.ingredientName} safety note`,
+        evidence: flag.description || flag.recommendation,
+      })),
+    ],
     images: [],
+    recommendedProducts: selectFallbackRecommendations(product, flags),
     safetyReport: {
       ingredientCount: ingredients.length,
       unmatchedIngredientCount: 0,
@@ -211,6 +232,19 @@ function buildFallbackProductDetail(slug) {
     },
     source: "static",
     error: null,
+  };
+}
+
+function mapRecommendedProduct(product) {
+  if (!product) return null;
+  return {
+    id: product.id || product.slug || product.name,
+    slug: product.slug || product.id,
+    name: product.name || "Recommended product",
+    brand: product.brandName || product.brand || "K-Beauty",
+    category: product.category || "Product",
+    skin: product.skin || "All Skin",
+    highestSeverity: product.highestSeverity || null,
   };
 }
 
@@ -230,6 +264,33 @@ function selectFallbackIngredients(product) {
   return ids
     .map((id) => fallbackIngredients.find((ingredient) => ingredient.id === id))
     .filter(Boolean);
+}
+
+function selectFallbackRecommendations(product, flags) {
+  const severity = getHighestSeverity(flags) || "none";
+  const currentSkin = String(product.skin || "").toLowerCase();
+  const candidates = fallbackProducts
+    .filter((item) => item.slug !== product.slug)
+    .map((item) => {
+      let score = 0;
+      if (item.category === product.category) score += 3;
+      if (currentSkin && String(item.skin || "").toLowerCase().includes(currentSkin.split("/")[0])) score += 2;
+      if (severity && severity !== "none" && (item.tag || "").toLowerCase().includes("gentle")) score += 1;
+      return { item, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ item }) => ({
+      id: item.id,
+      slug: item.slug,
+      name: item.name,
+      brand: item.brand,
+      category: item.category,
+      skin: item.skin,
+      highestSeverity: null,
+    }));
+
+  return candidates;
 }
 
 function getHighestSeverity(flags) {

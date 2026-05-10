@@ -1,102 +1,172 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./ShoppingMap.css";
+import { shoppingAreas, shoppingStores, shoppingTypes } from "../data/stores";
 
-const SPOTS = [
-  { name: "Olive Young Myeongdong", area: "Myeongdong", type: "Drugstore", emoji: "🏪", desc: "Korea's #1 beauty drugstore. Huge selection, best prices.", open: "9AM–11PM", must: ["COSRX", "Some By Mi", "Anua"] },
-  { name: "Innisfree Flagship Myeongdong", area: "Myeongdong", type: "Brand Store", emoji: "🌿", desc: "Nature-inspired K-beauty. Try their Jeju collection!", open: "10AM–10PM", must: ["Green Tea Serum", "Sunscreen"] },
-  { name: "Etude House Hongdae", area: "Hongdae", type: "Brand Store", emoji: "🎀", desc: "Playful, colorful makeup & skincare for the young crowd.", open: "11AM–10PM", must: ["SoonJung Line", "Play Color Eyes"] },
-  { name: "Lotte Duty Free Beauty", area: "Jung-gu", type: "Duty Free", emoji: "✈️", desc: "Tax-free luxury brands: Sulwhasoo, Laneige, Hera.", open: "9:30AM–7PM", must: ["Sulwhasoo Set", "Laneige Mask"] },
-  { name: "Aritaum Gangnam", area: "Gangnam", type: "Multi-brand", emoji: "💄", desc: "Amorepacific's multi-brand concept store with top picks.", open: "10:30AM–9:30PM", must: ["Iope", "Hanyul"] },
-  { name: "Olive Young Hongdae", area: "Hongdae", type: "Drugstore", emoji: "🏪", desc: "Youth district location with trendy, viral K-beauty picks.", open: "10AM–11PM", must: ["Torriden", "Beauty of Joseon"] },
-  { name: "Shinsegae Beauty", area: "Jung-gu", type: "Department Store", emoji: "🏬", desc: "Premium K-beauty in a luxury department store setting.", open: "10:30AM–8PM", must: ["Dr. Jart+", "Whoo"] },
-  { name: "Beauty Factory Dongdaemun", area: "Dongdaemun", type: "Market", emoji: "🌙", desc: "Open late night! Best prices on bulk K-beauty products.", open: "10AM–5AM", must: ["Sheet Masks", "Ampoules"] },
-];
+const formatCoordinate = (value) => value.toFixed(4);
 
-const AREAS = ["All", "Myeongdong", "Hongdae", "Gangnam", "Jung-gu", "Dongdaemun"];
-const TYPES = ["All", "Drugstore", "Brand Store", "Duty Free", "Department Store", "Multi-brand", "Market"];
+const getMapBounds = (stores) => {
+  const latitudes = stores.map((store) => store.lat);
+  const longitudes = stores.map((store) => store.lng);
+
+  return {
+    minLat: Math.min(...latitudes),
+    maxLat: Math.max(...latitudes),
+    minLng: Math.min(...longitudes),
+    maxLng: Math.max(...longitudes),
+  };
+};
+
+const getPinStyle = (store, bounds) => {
+  const latSpan = bounds.maxLat - bounds.minLat || 1;
+  const lngSpan = bounds.maxLng - bounds.minLng || 1;
+  const left = 10 + ((store.lng - bounds.minLng) / lngSpan) * 80;
+  const top = 14 + (1 - (store.lat - bounds.minLat) / latSpan) * 64;
+
+  return {
+    left: `${Math.min(90, Math.max(8, left))}%`,
+    top: `${Math.min(82, Math.max(12, top))}%`,
+  };
+};
 
 export default function ShoppingMap() {
   const [activeArea, setActiveArea] = useState("All");
   const [activeType, setActiveType] = useState("All");
   const [selected, setSelected] = useState(null);
 
-  const filtered = SPOTS.filter((s) => {
-    const matchArea = activeArea === "All" || s.area === activeArea;
-    const matchType = activeType === "All" || s.type === activeType;
-    return matchArea && matchType;
-  });
+  const filtered = useMemo(
+    () =>
+      shoppingStores.filter((store) => {
+        const matchArea = activeArea === "All" || store.area === activeArea;
+        const matchType = activeType === "All" || store.type === activeType;
+        return matchArea && matchType;
+      }),
+    [activeArea, activeType]
+  );
+
+  const mapBounds = useMemo(() => getMapBounds(shoppingStores), []);
+
+  useEffect(() => {
+    if (selected && !filtered.some((store) => store.id === selected.id)) {
+      setSelected(null);
+    }
+  }, [filtered, selected]);
 
   return (
     <div className="map-page">
       <div className="map-hero">
-        <h1>🗺️ K-Beauty <span className="pink">Shopping Map</span></h1>
-        <p>Find the best beauty stores across Seoul</p>
+        <h1>K-Beauty <span className="pink">Shopping Map</span></h1>
+        <p>Static Seoul store data ready for Phase 2 map API wiring.</p>
       </div>
 
-      {/* MAP PLACEHOLDER */}
       <div className="map-container">
         <div className="map-visual">
           <div className="map-bg">
-            <div className="map-title-overlay">📍 Seoul K-Beauty Hot Spots</div>
-            {filtered.map((s, i) => (
-              <div key={i} className={`map-pin ${selected?.name === s.name ? "selected" : ""}`}
-                style={{ top: `${20 + (i * 11) % 65}%`, left: `${15 + (i * 17) % 70}%` }}
-                onClick={() => setSelected(selected?.name === s.name ? null : s)}>
+            <div className="map-title-overlay">Seoul K-Beauty hot spots</div>
+            <div className="map-subtitle-overlay">
+              Coordinates only for later map API integration
+            </div>
+            <div className="map-axis map-axis-top">N {formatCoordinate(mapBounds.maxLat)} </div>
+            <div className="map-axis map-axis-bottom">S {formatCoordinate(mapBounds.minLat)} </div>
+            <div className="map-axis map-axis-left">W {formatCoordinate(mapBounds.minLng)} </div>
+            <div className="map-axis map-axis-right">E {formatCoordinate(mapBounds.maxLng)} </div>
+            <div className="map-grid" aria-hidden="true" />
+            {filtered.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`map-pin ${selected?.id === s.id ? "selected" : ""}`}
+                style={getPinStyle(s, mapBounds)}
+                onClick={() => setSelected(selected?.id === s.id ? null : s)}
+                aria-label={`Select ${s.name}`}
+              >
                 <span>{s.emoji}</span>
                 <div className="pin-label">{s.area}</div>
-              </div>
+                <div className="pin-coords">
+                  {formatCoordinate(s.lat)}, {formatCoordinate(s.lng)}
+                </div>
+              </button>
             ))}
           </div>
         </div>
 
         {selected && (
           <div className="store-detail">
-            <button className="close-btn" onClick={() => setSelected(null)}>✕</button>
+            <button type="button" className="close-btn" onClick={() => setSelected(null)}>
+              ✕
+            </button>
             <div className="store-emoji-big">{selected.emoji}</div>
             <div className="store-name">{selected.name}</div>
             <div className="store-area">📍 {selected.area}</div>
             <span className="store-type-badge">{selected.type}</span>
             <p className="store-desc">{selected.desc}</p>
+            <div className="store-address">Address: {selected.address}</div>
+            <div className="store-coords">
+              Lat {formatCoordinate(selected.lat)} · Lng {formatCoordinate(selected.lng)}
+            </div>
             <div className="store-open">🕐 {selected.open}</div>
             <div className="must-title">⭐ Must-try products:</div>
             <div className="must-list">
-              {selected.must.map((m, i) => <span key={i} className="must-tag">{m}</span>)}
+              {selected.must.map((m) => (
+                <span key={m} className="must-tag">
+                  {m}
+                </span>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* FILTERS */}
       <div className="map-filters">
         <div className="filter-row">
           <span className="filter-label">Area:</span>
-          {AREAS.map((a) => (
-            <button key={a} onClick={() => setActiveArea(a)}
-              className={`area-btn ${activeArea === a ? "active" : ""}`}>{a}</button>
+          {shoppingAreas.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setActiveArea(a)}
+              className={`area-btn ${activeArea === a ? "active" : ""}`}
+            >
+              {a}
+            </button>
           ))}
         </div>
         <div className="filter-row">
           <span className="filter-label">Type:</span>
-          {TYPES.map((t) => (
-            <button key={t} onClick={() => setActiveType(t)}
-              className={`area-btn ${activeType === t ? "active" : ""}`}>{t}</button>
+          {shoppingTypes.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setActiveType(t)}
+              className={`area-btn ${activeType === t ? "active" : ""}`}
+            >
+              {t}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* STORE LIST */}
       <div className="store-list">
-        {filtered.map((s, i) => (
-          <div key={i} className={`store-card ${selected?.name === s.name ? "selected" : ""}`}
-            onClick={() => setSelected(selected?.name === s.name ? null : s)}>
+        {filtered.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            className={`store-card ${selected?.id === s.id ? "selected" : ""}`}
+            onClick={() => setSelected(selected?.id === s.id ? null : s)}
+          >
             <div className="store-card-emoji">{s.emoji}</div>
             <div className="store-card-info">
               <div className="store-card-name">{s.name}</div>
-              <div className="store-card-area">📍 {s.area} · {s.type}</div>
+              <div className="store-card-area">
+                📍 {s.area} · {s.type}
+              </div>
+              <div className="store-card-address">{s.address}</div>
+              <div className="store-card-coords">
+                {formatCoordinate(s.lat)}, {formatCoordinate(s.lng)}
+              </div>
               <div className="store-card-open">🕐 {s.open}</div>
             </div>
             <div className="store-card-arrow">→</div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

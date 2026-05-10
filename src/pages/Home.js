@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Home.css";
 
 const CATEGORIES = [
@@ -24,9 +25,15 @@ const TIPS = [
 ];
 
 export default function Home({ setActivePage }) {
+  const navigate = useNavigate();
   const [searchVal, setSearchVal] = useState("");
   const [liked, setLiked] = useState({});
   const toggleLike = (i) => setLiked((p) => ({ ...p, [i]: !p[i] }));
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const query = searchVal.trim();
+    navigate(query ? `/products?q=${encodeURIComponent(query)}` : "/products");
+  };
 
   return (
     <div>
@@ -43,15 +50,20 @@ export default function Home({ setActivePage }) {
         <p className="hero-desc">
           Search products, decode ingredients, and find the best beauty spots across Korea — all in one place.
         </p>
-        <div className="search-bar">
+        <form className="search-bar" onSubmit={handleSearchSubmit}>
           <span>🔍</span>
-          <input value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
-            placeholder="Search products, ingredients, brands..." className="search-input" />
-          <button className="search-btn">Search</button>
-        </div>
+          <input
+            value={searchVal}
+            onChange={(e) => setSearchVal(e.target.value)}
+            placeholder="Search products, ingredients, brands..."
+            className="search-input"
+            aria-label="Search products, ingredients, and brands"
+          />
+          <button type="submit" className="search-btn">Search</button>
+        </form>
         <div className="tags">
           {["Hyaluronic Acid", "Niacinamide", "COSRX", "Sunscreen SPF50"].map((tag) => (
-            <span key={tag} className="tag" onClick={() => setActivePage("Ingredients")}>{tag}</span>
+            <button key={tag} type="button" className="tag" onClick={() => setActivePage("Ingredients")}>{tag}</button>
           ))}
         </div>
       </section>
@@ -61,7 +73,12 @@ export default function Home({ setActivePage }) {
         <h2 className="section-title">Browse by <span className="pink">Category</span></h2>
         <div className="categories">
           {CATEGORIES.map((c) => (
-            <button key={c.label} className="category-btn" onClick={() => setActivePage("Products")}>
+            <button
+              key={c.label}
+              type="button"
+              className="category-btn"
+              onClick={() => navigate(`/products?category=${encodeURIComponent(c.label)}`)}
+            >
               <span className="category-emoji">{c.emoji}</span>
               <span className="category-label">{c.label}</span>
             </button>
@@ -73,7 +90,7 @@ export default function Home({ setActivePage }) {
       <section className="section">
         <div className="section-header">
           <h2 className="section-title">🔥 Trending <span className="pink">Now</span></h2>
-          <button className="view-all" onClick={() => setActivePage("Products")}>View All →</button>
+          <button type="button" className="view-all" onClick={() => navigate("/products")}>View All →</button>
         </div>
         <div className="products-grid">
           {TRENDING.map((p, i) => (
@@ -90,7 +107,7 @@ export default function Home({ setActivePage }) {
                   <span className="product-skin">👤 {p.skin}</span>
                   <span className="product-price">{p.price}</span>
                 </div>
-                <button className="detail-btn">View Details</button>
+                <button type="button" className="detail-btn" onClick={() => navigate(`/products?q=${encodeURIComponent(p.name)}`)}>View Details</button>
               </div>
             </div>
           ))}
@@ -124,7 +141,7 @@ export default function Home({ setActivePage }) {
             <div className="banner-title">Take the Skin Quiz!</div>
             <div className="banner-desc">Get your personalized K-beauty routine in 2 minutes</div>
           </div>
-          <button className="banner-btn" onClick={() => setActivePage("Skin Quiz")}>Start Quiz →</button>
+          <button type="button" className="banner-btn" onClick={() => setActivePage("Skin Quiz")}>Start Quiz →</button>
         </div>
       </section>
 

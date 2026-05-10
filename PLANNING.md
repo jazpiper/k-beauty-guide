@@ -221,11 +221,11 @@ k-beauty-guide/
 - [x] `src/data/products.js`, `src/data/ingredients.js`로 seed/fallback 데이터 분리
 - [x] Supabase schema/RLS/seed 작성
 - [x] 크롤러 core types와 `manual-import`, `sitemap-only` connector shell 작성
-- [ ] 홈 검색창 동작 구현 (Products 페이지로 쿼리 전달)
-- [ ] 제품 상세에 source evidence, 추천 제품, 구매 링크, SEO metadata 추가
-- [ ] Shopping Map 정적 매장 데이터/좌표 준비 (실제 지도 API 연동은 Phase 2)
+- [x] 홈 검색창 동작 구현 (Products 페이지로 쿼리 전달)
+- [x] 제품 상세에 source evidence, 추천 제품, 구매 링크, SEO metadata 추가
+- [x] Shopping Map 정적 매장 데이터/좌표 준비 (실제 지도 API 연동은 Phase 2)
 - [ ] Local Supabase stack에서 migration/seed/function smoke 검증
 - [x] 성분 파서·안전성 rule engine을 frontend fallback과 Edge Function 양쪽에 일관되게 정리
-- [ ] 관리자 검수 큐 shell 구현
+- [x] 관리자 검수 큐 shell 구현
 - [ ] source별 크롤링 dry run 검증 후 connector 추가
 - [ ] Vercel 배포 세팅

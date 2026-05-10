@@ -1,0 +1,266 @@
+.admin-review-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px 28px;
+}
+
+.admin-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.admin-review-header h1 {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.admin-review-shell-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #855f00;
+  background: #fff7df;
+  border: 1px solid #f5e0a8;
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+.admin-review-layout {
+  display: grid;
+  grid-template-columns: minmax(290px, 360px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.queue-panel,
+.detail-panel {
+  background: #fff;
+  border: 1px solid #ffe0ec;
+  border-radius: 12px;
+}
+
+.queue-panel {
+  overflow: hidden;
+}
+
+.queue-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #ffeaf2;
+}
+
+.queue-panel-head h2 {
+  font-size: 15px;
+}
+
+.queue-panel-head span {
+  font-size: 12px;
+  color: #777;
+  font-weight: 700;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 68vh;
+  overflow: auto;
+}
+
+.queue-item {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #fff1f6;
+  background: #fff;
+  padding: 11px 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue-item:hover {
+  background: #fff8fb;
+}
+
+.queue-item.selected {
+  background: #fff0f6;
+}
+
+.queue-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.queue-item strong {
+  font-size: 13px;
+}
+
+.queue-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.queue-item-meta {
+  color: #7c7c7c;
+  font-size: 12px;
+}
+
+.status-badge {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.status-badge.pending {
+  background: #ffe6bc;
+  color: #8c5900;
+}
+
+.status-badge.approved {
+  background: #dbf7e6;
+  color: #0f6e39;
+}
+
+.status-badge.rejected {
+  background: #ffe1e1;
+  color: #892d2d;
+}
+
+.status-badge.needs-info {
+  background: #e8ecff;
+  color: #33439a;
+}
+
+.detail-panel {
+  padding: 14px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.detail-head h2 {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.detail-grid dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 3px;
+  font-weight: 700;
+}
+
+.detail-grid dd {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detail-block {
+  border: 1px solid #ffeaf2;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.detail-block h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  color: #6a6a6a;
+}
+
+.detail-block p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.action-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 12px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.action-btn.approve {
+  background: #0f7a44;
+  color: #fff;
+}
+
+.action-btn.reject {
+  background: #992f2f;
+  color: #fff;
+}
+
+.action-btn.needs-info {
+  background: #fff;
+  color: #33439a;
+  border-color: #c8d0ff;
+}
+
+.detail-empty {
+  color: #777;
+  padding: 24px 0;
+}
+
+@media (max-width: 920px) {
+  .admin-review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .queue-list {
+    max-height: 40vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-review-page {
+    padding: 16px 12px 24px;
+  }
+
+  .admin-review-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-actions {
+    flex-wrap: wrap;
+  }
+
+  .action-btn {
+    flex: 1;
+    min-width: 115px;
+  }
+}
