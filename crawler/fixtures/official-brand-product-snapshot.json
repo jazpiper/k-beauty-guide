@@ -1,0 +1,52 @@
+{
+  "fixture_id": "official-brand-product-snapshot",
+  "source_type": "official_brand_product_page",
+  "source_url": "https://www.officialbrand.example/products/cica-barrier-cream",
+  "expected_candidates": {
+    "images": [
+      {
+        "role": "primary",
+        "image_url": "https://cdn.officialbrand.example/products/cica-barrier-cream/main-01.jpg",
+        "source_evidence": "jsonld:Product.image[0]"
+      },
+      {
+        "role": "gallery",
+        "image_url": "https://cdn.officialbrand.example/products/cica-barrier-cream/main-02.jpg",
+        "source_evidence": "jsonld:Product.image[1]"
+      },
+      {
+        "role": "unknown",
+        "image_url": "https://cdn.officialbrand.example/products/cica-barrier-cream/og-main.jpg",
+        "source_evidence": "meta[property='og:image']"
+      },
+      {
+        "role": "gallery",
+        "image_url": "https://cdn.officialbrand.example/products/cica-barrier-cream/gallery-01.jpg",
+        "source_evidence": "section[aria-label='Product gallery'] img[0]"
+      }
+    ],
+    "texts": [
+      {
+        "field_type": "description",
+        "raw_text": "Barrier-support cream with centella, panthenol, and ceramide for daily calming hydration.",
+        "source_evidence": "jsonld:Product.description"
+      },
+      {
+        "field_type": "benefit",
+        "raw_text": "Supports skin barrier with ceramide NP.",
+        "source_evidence": "#benefits li[0]"
+      },
+      {
+        "field_type": "claim",
+        "raw_text": "Clinically proven to treat acne and calm irritation overnight.",
+        "source_evidence": "#claims p",
+        "risk_flags": ["medical_treatment", "disease_reference"]
+      },
+      {
+        "field_type": "how_to_use",
+        "raw_text": "Apply a small amount as the last step of your evening routine.",
+        "source_evidence": "#how-to-use p"
+      }
+    ]
+  }
+}

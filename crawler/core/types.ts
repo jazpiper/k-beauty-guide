@@ -50,6 +50,20 @@ export type RawSnapshot = {
   fetchedAt: string;
 };
 
+export type ProductImageCandidate = {
+  url: string;
+  source: "json_ld" | "open_graph" | "shopify_product_json" | "dom_selector";
+  selector?: string;
+  confidence?: number;
+};
+
+export type ProductTextCandidate = {
+  text: string;
+  source: "json_ld" | "open_graph" | "shopify_product_json" | "dom_selector";
+  selector?: string;
+  confidence?: number;
+};
+
 export type ProductCandidate = {
   sourceId: string;
   snapshotId: string;
@@ -62,8 +76,11 @@ export type ProductCandidate = {
   sourceCurrency?: string;
   priceKrw?: number;
   imageUrls: string[];
+  imageCandidates?: ProductImageCandidate[];
   description?: string;
+  descriptionCandidates?: ProductTextCandidate[];
   claims: string[];
+  claimRiskFlags?: string[];
   ingredientTextRaw?: string;
   parserVersion: string;
   confidenceHints: ConfidenceHint[];

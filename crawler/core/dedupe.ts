@@ -4,7 +4,8 @@ export type DuplicateSignal = {
   reasonCode:
     | "same_source_product_id"
     | "same_source_url"
-    | "same_brand_normalized_name";
+    | "same_brand_normalized_name"
+    | "same_image_url";
   confidence: number;
 };
 
@@ -17,15 +18,7 @@ const trackingParamNames = new Set([
   "mc_eid",
 ]);
 
-export function normalizeName(value: string | undefined): string {
-  return (value ?? "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣]+/g, " ")
-    .trim();
-}
-
-export function normalizeSourceUrl(value: string | undefined): string {
+function normalizeComparableUrl(value: string | undefined): string {
   const trimmed = value?.trim();
   if (!trimmed) return "";
 
@@ -55,6 +48,40 @@ export function normalizeSourceUrl(value: string | undefined): string {
   }
 }
 
+export function normalizeName(value: string | undefined): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, " ")
+    .trim();
+}
+
+export function normalizeSourceUrl(value: string | undefined): string {
+  return normalizeComparableUrl(value);
+}
+
+export function normalizeImageUrl(value: string | undefined): string {
+  return normalizeComparableUrl(value);
+}
+
+export function dedupeCandidateImageUrls(imageUrls: string[]): string[] {
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const imageUrl of imageUrls) {
+    const trimmed = imageUrl?.trim();
+    if (!trimmed) continue;
+
+    const normalized = normalizeImageUrl(trimmed);
+    if (!normalized || seen.has(normalized)) continue;
+
+    seen.add(normalized);
+    deduped.push(trimmed);
+  }
+
+  return deduped;
+}
+
 function hasSameSourceProductId(
   a: ProductCandidate,
   b: ProductCandidate,
@@ -63,9 +90,7 @@ function hasSameSourceProductId(
   const bProductId = b.sourceProductId?.trim();
 
   return Boolean(
-    a.sourceId === b.sourceId &&
-      aProductId &&
-      aProductId === bProductId,
+    a.sourceId === b.sourceId && aProductId && aProductId === bProductId,
   );
 }
 
@@ -86,6 +111,18 @@ function hasSameBrandAndProductName(
   );
 }
 
+function hasSameImageUrl(a: ProductCandidate, b: ProductCandidate): boolean {
+  const bNormalizedImageUrls = new Set(
+    dedupeCandidateImageUrls(b.imageUrls)
+      .map((imageUrl) => normalizeImageUrl(imageUrl))
+      .filter(Boolean),
+  );
+
+  return dedupeCandidateImageUrls(a.imageUrls).some((imageUrl) =>
+    bNormalizedImageUrls.has(normalizeImageUrl(imageUrl)),
+  );
+}
+
 export function compareCandidates(
   a: ProductCandidate,
   b: ProductCandidate,
@@ -100,6 +137,10 @@ export function compareCandidates(
 
   if (aSourceUrl && aSourceUrl === bSourceUrl) {
     signals.push({ reasonCode: "same_source_url", confidence: 0.95 });
+  }
+
+  if (hasSameImageUrl(a, b)) {
+    signals.push({ reasonCode: "same_image_url", confidence: 0.88 });
   }
 
   if (hasSameBrandAndProductName(a, b)) {

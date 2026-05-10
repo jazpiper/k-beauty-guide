@@ -48,6 +48,7 @@
 ### Plans / Specs
 
 - [MVP Implementation Plan](superpowers/plans/2026-05-01-mvp-implementation-plan.md): Supabase-backed MVP 구현 순서.
+- [Product Media and Description Ingestion Plan](superpowers/plans/2026-05-10-product-media-description-ingestion-plan.md): 제품 이미지, 상세 설명, claim 후보 수집과 검수 계획.
 - [Product Ingestion and Ingredient Safety Automation](superpowers/specs/2026-05-01-product-ingestion-ingredient-safety-design.md): 수집 자동화와 성분 안전성 설계 초안.
 - [Admin Review Console UX](superpowers/specs/2026-05-01-admin-review-console-ux-spec.md): evidence review desk 중심의 관리자 콘솔 UX.
 
