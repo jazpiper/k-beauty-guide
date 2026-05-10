@@ -121,21 +121,27 @@ Then open `http://localhost:3000`.
 Run after `supabase/config.toml`, migrations, seed, and functions exist:
 
 ```bash
-npx supabase start
-npx supabase db reset
+npm run smoke:supabase:local
 ```
 
 Expected:
 
-```text
-Finished supabase db reset
+```json
+{
+  "ok": true,
+  "parsedCount": 3,
+  "unmatchedCount": 1,
+  "flagCount": 1
+}
 ```
 
-Confirm required objects exist:
+Keep the local stack running after smoke when you want to inspect Studio or run manual checks:
 
 ```bash
-npx supabase status
+npm run smoke:supabase:local -- --keep-stack
 ```
+
+When `--keep-stack` uses a temporary mirror, the script leaves that mirror in place because the running Edge Runtime still mounts it. Stop Supabase before deleting the mirror.
 
 Manual dashboard check:
 
@@ -161,7 +167,9 @@ Latest local check (2026-05-03 KST):
 
 ### Windows Docker bind mount caveat
 
-If the repo lives under a cloud-drive, non-ASCII, or space-heavy Windows path, Docker Desktop can start the Edge Runtime while mounting `supabase/functions` as an empty directory. The symptom is:
+`npm run smoke:supabase:local` is cross-platform. On Mac/Linux it uses the current repo path. On Windows it automatically switches to an ASCII temporary mirror when the repo path is likely to break Docker Desktop bind mounts.
+
+If running Supabase manually from a cloud-drive, non-ASCII, or space-heavy Windows path, Docker Desktop can start the Edge Runtime while mounting `supabase/functions` as an empty directory. The symptom is:
 
 ```text
 InvalidWorkerCreation: worker boot error: failed to bootstrap runtime: failed to determine entrypoint
@@ -175,12 +183,8 @@ docker exec supabase_edge_runtime_k-beauty-guide-local find supabase/functions -
 
 If this prints nothing, stop the stack and run Supabase from an ASCII local mirror:
 
-```powershell
-npx supabase stop --no-backup
-npx supabase start --workdir C:\codex-temp\k-beauty-guide-supabase-smoke
-npx supabase db reset --workdir C:\codex-temp\k-beauty-guide-supabase-smoke
-$env:SUPABASE_ANON_KEY = ((npx supabase status --workdir C:\codex-temp\k-beauty-guide-supabase-smoke -o env) | Select-String '^ANON_KEY=').ToString().Split('=', 2)[1].Trim('"')
-npm run smoke:supabase:analyzer
+```bash
+npm run smoke:supabase:local -- --mirror
 ```
 
 ## 6. Local Edge Function Smoke

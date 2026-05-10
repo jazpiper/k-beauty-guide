@@ -18,6 +18,7 @@
     "supabase:functions:serve": "npx supabase functions serve",
     "supabase:functions:serve:analyzer": "npx supabase functions serve analyze-ingredient-text --no-verify-jwt",
     "smoke:supabase:analyzer": "node scripts/smoke-supabase-analyzer.mjs",
+    "smoke:supabase:local": "node scripts/smoke-supabase-local.mjs",
     "eject": "node ./node_modules/react-scripts/bin/react-scripts.js eject"
   },
   "eslintConfig": {
