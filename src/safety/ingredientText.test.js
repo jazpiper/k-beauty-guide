@@ -62,4 +62,10 @@ describe("ingredientText", () => {
       expect(normalizeIngredientName("  PEG-60 Hydrogenated Castor Oil (and) Water / 정제수  ")).toBe("peg 60 hydrogenated castor oil water 정제수");
     });
   });
+
+  test("normalizes null, undefined, and empty string safely", () => {
+    expect(normalizeIngredientName(null)).toBe("");
+    expect(normalizeIngredientName(undefined)).toBe("");
+    expect(normalizeIngredientName("")).toBe("");
+  });
 });
