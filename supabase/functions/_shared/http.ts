@@ -6,22 +6,14 @@ export const corsHeaders = {
 
 export type JsonRecord = Record<string, unknown>;
 
-export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+export function okResponse(data: unknown, status = 200): Response {
   const headers = new Headers(corsHeaders);
   headers.set("Content-Type", "application/json");
 
-  if (init.headers) {
-    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-  }
-
-  return new Response(JSON.stringify(body), {
-    ...init,
+  return new Response(JSON.stringify({ ok: true, data }), {
     headers,
+    status,
   });
-}
-
-export function okResponse(data: unknown, status = 200): Response {
-  return jsonResponse({ ok: true, data }, { status });
 }
 
 export function errorResponse(
@@ -30,14 +22,20 @@ export function errorResponse(
   message: string,
   details?: unknown,
 ): Response {
-  return jsonResponse({
+  const headers = new Headers(corsHeaders);
+  headers.set("Content-Type", "application/json");
+
+  return new Response(JSON.stringify({
     ok: false,
     error: {
       code,
       message,
       ...(details === undefined ? {} : { details }),
     },
-  }, { status });
+  }), {
+    headers,
+    status,
+  });
 }
 
 export function optionsResponse(): Response {
