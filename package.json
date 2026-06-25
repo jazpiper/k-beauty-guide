@@ -13,7 +13,7 @@
     "start": "node ./node_modules/react-scripts/bin/react-scripts.js start",
     "build": "node ./node_modules/react-scripts/bin/react-scripts.js build",
     "test": "node ./node_modules/react-scripts/bin/react-scripts.js test",
-    "test:crawler": "node crawler/tests/product-media-description-ingestion.test.cjs && node crawler/tests/local-fixture-runtime.test.cjs",
+    "test:crawler": "node crawler/tests/product-media-description-ingestion.test.cjs && node crawler/tests/local-fixture-runtime.test.cjs && node crawler/tests/media-validation.test.cjs",
     "supabase:status": "npx supabase status",
     "supabase:reset": "npx supabase db reset",
     "supabase:functions:serve": "npx supabase functions serve",
