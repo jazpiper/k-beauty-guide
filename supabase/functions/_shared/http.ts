@@ -40,16 +40,12 @@ export function errorResponse(
   }, { status });
 }
 
-export function optionsResponse(): Response {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders,
-  });
-}
-
 export function requirePost(req: Request): Response | null {
   if (req.method === "OPTIONS") {
-    return optionsResponse();
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
   }
 
   if (req.method !== "POST") {
