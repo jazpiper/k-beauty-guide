@@ -1,4 +1,4 @@
-export const corsHeaders = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -73,7 +73,7 @@ export async function readJsonBody(req: Request): Promise<JsonRecord | Response>
   }
 }
 
-export function isRecord(value: unknown): value is JsonRecord {
+function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 

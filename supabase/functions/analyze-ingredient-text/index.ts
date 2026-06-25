@@ -232,32 +232,66 @@ function scoreAliasMatch(normalizedRawName: string, normalizedAlias: string): nu
   return 0;
 }
 
+// In-memory cache for safety rules to reduce database load
+const ACTIVE_RULES_CACHE = new Map<string, RuleRow[]>();
+
 async function loadActiveRules(
   client: SupabaseClient,
   ingredientIds: string[],
 ): Promise<RuleRow[] | Response> {
   if (ingredientIds.length === 0) return [];
 
-  const { data, error } = await client
-    .from("ingredient_safety_rules")
-    .select(`
-      id,
-      ingredient_id,
-      severity,
-      title,
-      why_it_matters,
-      who_should_care,
-      recommendation,
-      version
-    `)
-    .in("ingredient_id", ingredientIds)
-    .eq("active", true);
+  const uniqueIds = [...new Set(ingredientIds)];
+  const uncachedIds: string[] = [];
+  const results: RuleRow[] = [];
 
-  if (error) {
-    return errorResponse(500, "database_error", "Failed to load safety rules", error.message);
+  for (const id of uniqueIds) {
+    if (ACTIVE_RULES_CACHE.has(id)) {
+      results.push(...(ACTIVE_RULES_CACHE.get(id) || []));
+    } else {
+      uncachedIds.push(id);
+    }
   }
 
-  return (data ?? []) as unknown as RuleRow[];
+  if (uncachedIds.length > 0) {
+    const { data, error } = await client
+      .from("ingredient_safety_rules")
+      .select(`
+        id,
+        ingredient_id,
+        severity,
+        title,
+        why_it_matters,
+        who_should_care,
+        recommendation,
+        version
+      `)
+      .in("ingredient_id", uncachedIds)
+      .eq("active", true);
+
+    if (error) {
+      return errorResponse(500, "database_error", "Failed to load safety rules", error.message);
+    }
+
+    const fetchedRules = (data ?? []) as unknown as RuleRow[];
+
+    // Group rules by ingredient_id
+    const rulesByIngredientId = new Map<string, RuleRow[]>();
+    for (const id of uncachedIds) {
+      rulesByIngredientId.set(id, []);
+    }
+    for (const rule of fetchedRules) {
+      rulesByIngredientId.get(rule.ingredient_id)?.push(rule);
+    }
+
+    // Populate cache and add to results
+    for (const [id, rules] of rulesByIngredientId.entries()) {
+      ACTIVE_RULES_CACHE.set(id, rules);
+      results.push(...rules);
+    }
+  }
+
+  return results;
 }
 
 function buildFlags(parsedIngredients: ParsedIngredient[], ruleRows: RuleRow[]) {
