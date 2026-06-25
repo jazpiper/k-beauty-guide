@@ -48,7 +48,7 @@ function normalizeComparableUrl(value: string | undefined): string {
   }
 }
 
-export function normalizeName(value: string | undefined): string {
+function normalizeName(value: string | undefined): string {
   return (value ?? "")
     .normalize("NFKC")
     .toLowerCase()
