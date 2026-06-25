@@ -20,7 +20,7 @@ const REVIEW_STATUS_BY_ACTION = {
   assign: "assigned",
 } as const;
 
-type ReviewAction = typeof REVIEW_ACTIONS[number];
+type ReviewAction = (typeof REVIEW_ACTIONS)[number];
 type ReviewItem = {
   id: string;
   item_type: string;
@@ -58,16 +58,29 @@ async function handleRequest(req: Request): Promise<Response> {
   const idempotencyKey = stringField(body, "idempotencyKey");
   const comment = stringField(body, "comment");
   const assignedTo = stringField(body, "assignedTo");
-  const reviewItemId = optionalStringField(body, "reviewItemId") ?? pathId(req, "admin-review-action");
+  const reviewItemId =
+    optionalStringField(body, "reviewItemId") ??
+    pathId(req, "admin-review-action");
 
-  const validationError = validateRequest(action, reviewItemId, idempotencyKey, comment, assignedTo);
+  const validationError = validateRequest(
+    action,
+    reviewItemId,
+    idempotencyKey,
+    comment,
+    assignedTo,
+  );
   if (validationError) return validationError;
 
   const serviceClient = createServiceRoleClient();
   if (!serviceClient.ok) {
-    return errorResponse(500, "configuration_error", "Missing Supabase service role configuration", {
-      missing: serviceClient.missing,
-    });
+    return errorResponse(
+      500,
+      "configuration_error",
+      "Missing Supabase service role configuration",
+      {
+        missing: serviceClient.missing,
+      },
+    );
   }
 
   const actorResult = await requireActiveAdmin(serviceClient.client, req);
@@ -94,7 +107,11 @@ function validateRequest(
   assignedTo: string,
 ): Response | null {
   if (!REVIEW_ACTIONS.includes(action as ReviewAction)) {
-    return errorResponse(400, "validation_error", "action must be approve, reject, block, or assign");
+    return errorResponse(
+      400,
+      "validation_error",
+      "action must be approve, reject, block, or assign",
+    );
   }
 
   if (!reviewItemId) {
@@ -105,7 +122,12 @@ function validateRequest(
     return errorResponse(400, "validation_error", "idempotencyKey is required");
   }
 
-  if (COMMENT_REQUIRED_ACTIONS.includes(action as typeof COMMENT_REQUIRED_ACTIONS[number]) && !comment) {
+  if (
+    COMMENT_REQUIRED_ACTIONS.includes(
+      action as (typeof COMMENT_REQUIRED_ACTIONS)[number],
+    ) &&
+    !comment
+  ) {
     return errorResponse(400, "validation_error", `${action} requires comment`);
   }
 
@@ -116,7 +138,10 @@ function validateRequest(
   return null;
 }
 
-async function requireActiveAdmin(client: SupabaseClient, req: Request): Promise<AdminUser | Response> {
+async function requireActiveAdmin(
+  client: SupabaseClient,
+  req: Request,
+): Promise<AdminUser | Response> {
   const authorization = req.headers.get("authorization") ?? "";
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
 
@@ -137,7 +162,12 @@ async function requireActiveAdmin(client: SupabaseClient, req: Request): Promise
     .maybeSingle();
 
   if (adminError) {
-    return errorResponse(500, "db_error", "Failed to verify admin user", adminError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to verify admin user",
+      adminError.message,
+    );
   }
 
   if (!adminUser) {
@@ -177,7 +207,12 @@ async function applyReviewAction(
     .maybeSingle();
 
   if (reviewError) {
-    return errorResponse(500, "db_error", "Failed to load review item", reviewError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to load review item",
+      reviewError.message,
+    );
   }
 
   if (!reviewItem) {
@@ -185,23 +220,45 @@ async function applyReviewAction(
   }
 
   const previousValue = { reviewItem };
-  if (TERMINAL_STATUSES.includes(reviewItem.status as typeof TERMINAL_STATUSES[number])) {
-    return errorResponse(409, "already_resolved", "Review item is already resolved", {
-      status: reviewItem.status,
-    });
+  if (
+    TERMINAL_STATUSES.includes(
+      reviewItem.status as (typeof TERMINAL_STATUSES)[number],
+    )
+  ) {
+    return errorResponse(
+      409,
+      "already_resolved",
+      "Review item is already resolved",
+      {
+        status: reviewItem.status,
+      },
+    );
   }
 
-  const claimResult = await claimReviewItem(client, reviewItem as ReviewItem, params);
+  const claimResult = await claimReviewItem(
+    client,
+    reviewItem as ReviewItem,
+    params,
+  );
   if (claimResult instanceof Response) return claimResult;
 
-  const publicMutation = params.action === "approve"
-    ? await approveReviewItem(client, reviewItem as ReviewItem)
-    : await markCandidateStatus(client, reviewItem as ReviewItem, params.action);
+  const publicMutation =
+    params.action === "approve"
+      ? await approveReviewItem(client, reviewItem as ReviewItem)
+      : await markCandidateStatus(
+          client,
+          reviewItem as ReviewItem,
+          params.action,
+        );
   if (publicMutation instanceof Response) return publicMutation;
 
-  const updates: Record<string, unknown> = params.action === "assign"
-    ? { assigned_to: params.assignedTo, status: "assigned" }
-    : { status: REVIEW_STATUS_BY_ACTION[params.action], resolved_at: new Date().toISOString() };
+  const updates: Record<string, unknown> =
+    params.action === "assign"
+      ? { assigned_to: params.assignedTo, status: "assigned" }
+      : {
+          status: REVIEW_STATUS_BY_ACTION[params.action],
+          resolved_at: new Date().toISOString(),
+        };
 
   const { data: updatedReviewItem, error: updateError } = await client
     .from("review_items")
@@ -211,7 +268,12 @@ async function applyReviewAction(
     .single();
 
   if (updateError) {
-    return errorResponse(500, "db_error", "Failed to update review item", updateError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to update review item",
+      updateError.message,
+    );
   }
 
   const auditResult = await writeAuditLog(client, {
@@ -241,7 +303,11 @@ async function applyReviewAction(
 
 async function findExistingAudit(
   client: SupabaseClient,
-  params: { action: ReviewAction; idempotencyKey: string; reviewItemId: string },
+  params: {
+    action: ReviewAction;
+    idempotencyKey: string;
+    reviewItemId: string;
+  },
 ): Promise<{ id: string } | null | Response> {
   const { data, error } = await client
     .from("admin_audit_logs")
@@ -253,7 +319,12 @@ async function findExistingAudit(
     .maybeSingle();
 
   if (error) {
-    return errorResponse(500, "db_error", "Failed to check idempotency key", error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to check idempotency key",
+      error.message,
+    );
   }
 
   return data as { id: string } | null;
@@ -262,11 +333,17 @@ async function findExistingAudit(
 async function claimReviewItem(
   client: SupabaseClient,
   reviewItem: ReviewItem,
-  params: { action: ReviewAction; actor: AdminUser; assignedTo: string; reviewItemId: string },
+  params: {
+    action: ReviewAction;
+    actor: AdminUser;
+    assignedTo: string;
+    reviewItemId: string;
+  },
 ): Promise<ReviewItem | Response> {
-  const updates = params.action === "assign"
-    ? { assigned_to: params.assignedTo, status: "assigned" }
-    : { assigned_to: params.actor.user_id, status: "assigned" };
+  const updates =
+    params.action === "assign"
+      ? { assigned_to: params.assignedTo, status: "assigned" }
+      : { assigned_to: params.actor.user_id, status: "assigned" };
 
   const { data, error } = await client
     .from("review_items")
@@ -277,17 +354,29 @@ async function claimReviewItem(
     .maybeSingle();
 
   if (error) {
-    return errorResponse(500, "db_error", "Failed to claim review item", error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to claim review item",
+      error.message,
+    );
   }
 
   if (!data) {
-    return errorResponse(409, "already_resolved", "Review item changed before action could be applied");
+    return errorResponse(
+      409,
+      "already_resolved",
+      "Review item changed before action could be applied",
+    );
   }
 
   return data as ReviewItem;
 }
 
-async function approveReviewItem(client: SupabaseClient, reviewItem: ReviewItem): Promise<unknown | Response> {
+async function approveReviewItem(
+  client: SupabaseClient,
+  reviewItem: ReviewItem,
+): Promise<unknown | Response> {
   if (reviewItem.item_type !== "product_candidate") {
     return {
       applied: "review_status_only",
@@ -297,36 +386,53 @@ async function approveReviewItem(client: SupabaseClient, reviewItem: ReviewItem)
 
   const { data: candidate, error: candidateError } = await client
     .from("product_candidates")
-    .select([
-      "id",
-      "source_id",
-      "source_product_id",
-      "source_url",
-      "brand_name",
-      "product_name",
-      "category",
-      "description",
-      "price_krw",
-      "source_price",
-      "source_currency",
-      "image_urls",
-    ].join(", "))
+    .select(
+      [
+        "id",
+        "source_id",
+        "source_product_id",
+        "source_url",
+        "brand_name",
+        "product_name",
+        "category",
+        "description",
+        "price_krw",
+        "source_price",
+        "source_currency",
+        "image_urls",
+      ].join(", "),
+    )
     .eq("id", reviewItem.item_id)
     .single();
 
   if (candidateError) {
-    return errorResponse(500, "db_error", "Failed to load product candidate", candidateError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to load product candidate",
+      candidateError.message,
+    );
   }
 
   const productCandidate = candidate as ProductCandidate;
   if (!productCandidate.brand_name) {
-    return errorResponse(409, "approval_validation_error", "Product candidate requires brand_name before approval");
+    return errorResponse(
+      409,
+      "approval_validation_error",
+      "Product candidate requires brand_name before approval",
+    );
   }
 
-  const brandResult = await findOrCreateBrand(client, productCandidate.brand_name);
+  const brandResult = await findOrCreateBrand(
+    client,
+    productCandidate.brand_name,
+  );
   if (brandResult instanceof Response) return brandResult;
 
-  const existingProductId = await findExistingProductId(client, productCandidate);
+  const existingProductId = await findExistingProductId(
+    client,
+    productCandidate,
+  );
   if (existingProductId instanceof Response) return existingProductId;
 
   const productPayload = {
@@ -344,18 +450,40 @@ async function approveReviewItem(client: SupabaseClient, reviewItem: ReviewItem)
   };
 
   const productResult = existingProductId
-    ? await client.from("products").update(productPayload).eq("id", existingProductId).select("id").single()
-    : await client.from("products").insert(productPayload).select("id").single();
+    ? await client
+        .from("products")
+        .update(productPayload)
+        .eq("id", existingProductId)
+        .select("id")
+        .single()
+    : await client
+        .from("products")
+        .insert(productPayload)
+        .select("id")
+        .single();
 
   if (productResult.error) {
-    return errorResponse(500, "db_error", "Failed to publish product candidate", productResult.error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to publish product candidate",
+      productResult.error.message,
+    );
   }
 
   const productId = productResult.data.id as string;
-  const sourceResult = await ensureProductSource(client, productId, productCandidate);
+  const sourceResult = await ensureProductSource(
+    client,
+    productId,
+    productCandidate,
+  );
   if (sourceResult instanceof Response) return sourceResult;
 
-  const imageResult = await ensureProductImages(client, productId, productCandidate.image_urls);
+  const imageResult = await ensureProductImages(
+    client,
+    productId,
+    productCandidate.image_urls,
+  );
   if (imageResult instanceof Response) return imageResult;
 
   const { error: candidateUpdateError } = await client
@@ -364,7 +492,12 @@ async function approveReviewItem(client: SupabaseClient, reviewItem: ReviewItem)
     .eq("id", productCandidate.id);
 
   if (candidateUpdateError) {
-    return errorResponse(500, "db_error", "Failed to mark product candidate approved", candidateUpdateError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to mark product candidate approved",
+      candidateUpdateError.message,
+    );
   }
 
   return {
@@ -390,13 +523,21 @@ async function markCandidateStatus(
     .eq("id", reviewItem.item_id);
 
   if (error) {
-    return errorResponse(500, "db_error", "Failed to update product candidate status", error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to update product candidate status",
+      error.message,
+    );
   }
 
   return { applied: "updated_candidate_status", candidateStatus };
 }
 
-async function findOrCreateBrand(client: SupabaseClient, brandName: string): Promise<{ id: string } | Response> {
+async function findOrCreateBrand(
+  client: SupabaseClient,
+  brandName: string,
+): Promise<{ id: string } | Response> {
   const slug = slugify(brandName);
   const { data: existingBrand, error: findError } = await client
     .from("brands")
@@ -405,7 +546,12 @@ async function findOrCreateBrand(client: SupabaseClient, brandName: string): Pro
     .maybeSingle();
 
   if (findError) {
-    return errorResponse(500, "db_error", "Failed to find brand", findError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to find brand",
+      findError.message,
+    );
   }
 
   if (existingBrand) return existingBrand as { id: string };
@@ -417,7 +563,12 @@ async function findOrCreateBrand(client: SupabaseClient, brandName: string): Pro
     .single();
 
   if (insertError) {
-    return errorResponse(500, "db_error", "Failed to create brand", insertError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to create brand",
+      insertError.message,
+    );
   }
 
   return newBrand as { id: string };
@@ -437,7 +588,12 @@ async function findExistingProductId(
       .maybeSingle();
 
     if (sourceProductError) {
-      return errorResponse(500, "db_error", "Failed to find existing product source", sourceProductError.message);
+      return errorResponse(
+        500,
+        "db_error",
+        "Failed to find existing product source",
+        sourceProductError.message,
+      );
     }
 
     if (sourceProductMatch?.product_id) return sourceProductMatch.product_id;
@@ -452,7 +608,12 @@ async function findExistingProductId(
     .maybeSingle();
 
   if (error) {
-    return errorResponse(500, "db_error", "Failed to find existing product source", error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to find existing product source",
+      error.message,
+    );
   }
 
   return data?.product_id ?? null;
@@ -472,10 +633,16 @@ async function ensureProductSource(
     .maybeSingle();
 
   if (findError) {
-    return errorResponse(500, "db_error", "Failed to find product source", findError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to find product source",
+      findError.message,
+    );
   }
 
-  if (existingSource) return { productSourceId: existingSource.id, reused: true };
+  if (existingSource)
+    return { productSourceId: existingSource.id, reused: true };
 
   const { data: productSource, error: insertError } = await client
     .from("product_sources")
@@ -492,7 +659,12 @@ async function ensureProductSource(
     .single();
 
   if (insertError) {
-    return errorResponse(500, "db_error", "Failed to create product source", insertError.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to create product source",
+      insertError.message,
+    );
   }
 
   return { productSourceId: productSource.id, reused: false };
@@ -504,27 +676,49 @@ async function ensureProductImages(
   imageUrls: string[],
 ): Promise<unknown | Response> {
   const primaryUrls = imageUrls.slice(0, 8).filter(Boolean);
-  for (const [position, sourceUrl] of primaryUrls.entries()) {
-    const { data: existingImage, error: findError } = await client
-      .from("product_images")
-      .select("id")
-      .eq("product_id", productId)
-      .eq("source_url", sourceUrl)
-      .limit(1)
-      .maybeSingle();
+  if (primaryUrls.length === 0) {
+    return { imageCount: 0 };
+  }
 
-    if (findError) {
-      return errorResponse(500, "db_error", "Failed to find product image", findError.message);
-    }
+  const { data: existingImages, error: findError } = await client
+    .from("product_images")
+    .select("source_url")
+    .eq("product_id", productId)
+    .in("source_url", primaryUrls);
 
-    if (existingImage) continue;
+  if (findError) {
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to find product images",
+      findError.message,
+    );
+  }
 
+  const existingUrls = new Set(
+    existingImages?.map((img) => img.source_url) || [],
+  );
+
+  const imagesToInsert = primaryUrls
+    .map((sourceUrl, position) => ({
+      product_id: productId,
+      source_url: sourceUrl,
+      position: position,
+    }))
+    .filter((img) => !existingUrls.has(img.source_url));
+
+  if (imagesToInsert.length > 0) {
     const { error: insertError } = await client
       .from("product_images")
-      .insert({ product_id: productId, source_url: sourceUrl, position });
+      .insert(imagesToInsert);
 
     if (insertError) {
-      return errorResponse(500, "db_error", "Failed to create product image", insertError.message);
+      return errorResponse(
+        500,
+        "db_error",
+        "Failed to create product images",
+        insertError.message,
+      );
     }
   }
 
@@ -559,7 +753,12 @@ async function writeAuditLog(
     .single();
 
   if (error) {
-    return errorResponse(500, "db_error", "Failed to write audit log", error.message);
+    return errorResponse(
+      500,
+      "db_error",
+      "Failed to write audit log",
+      error.message,
+    );
   }
 
   return data as { id: string };

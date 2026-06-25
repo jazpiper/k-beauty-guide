@@ -73,7 +73,7 @@ export async function readJsonBody(req: Request): Promise<JsonRecord | Response>
   }
 }
 
-export function isRecord(value: unknown): value is JsonRecord {
+function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
