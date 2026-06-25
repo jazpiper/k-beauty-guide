@@ -1,3 +1,6 @@
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+
 import {
   errorResponse,
   okResponse,
@@ -6,7 +9,7 @@ import {
   stringField,
 } from "../_shared/http.ts";
 import { createServiceRoleClient } from "../_shared/supabase.ts";
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const MAX_INGREDIENT_TEXT_LENGTH = 10_000;
 const FORBIDDEN_PROFILE_FIELDS = [
@@ -59,7 +62,11 @@ type ParsedIngredient = {
   confidence: number;
 };
 
-Deno.serve(async (req: Request) => {
+let cachedAliasRows: AliasRow[] | null = null;
+let lastCacheUpdate: number = 0;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+serve(async (req: Request) => {
   const methodError = requirePost(req);
   if (methodError) return methodError;
 
@@ -156,6 +163,11 @@ function normalizeIngredientName(value: string): string {
 }
 
 async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] | Response> {
+  const now = Date.now();
+  if (cachedAliasRows && (now - lastCacheUpdate) < CACHE_TTL_MS) {
+    return cachedAliasRows;
+  }
+
   const { data, error } = await client
     .from("ingredient_aliases")
     .select(`
@@ -171,15 +183,19 @@ async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] |
       )
     `)
     .in("ingredients.source_status", ["verified", "imported"])
-    .limit(1000);
+    .limit(1000000); // Retrieve all possible rows since this is a global cache now
 
   if (error) {
     return errorResponse(500, "database_error", "Failed to load ingredient aliases", error.message);
   }
 
-  return ((data ?? []) as unknown as AliasRow[]).filter((row) =>
+  const rows = ((data ?? []) as unknown as AliasRow[]).filter((row) =>
     row.ingredients?.source_status === "verified" || row.ingredients?.source_status === "imported"
   );
+
+  cachedAliasRows = rows;
+  lastCacheUpdate = now;
+  return rows;
 }
 
 function matchToken(token: IngredientToken, aliasRows: AliasRow[]): ParsedIngredient {
