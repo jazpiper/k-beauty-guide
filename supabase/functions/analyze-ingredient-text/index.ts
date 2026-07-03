@@ -106,6 +106,13 @@ serve(async (req: Request) => {
     );
   }
 
+  const authorization = req.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) {
+    return errorResponse(401, "unauthorized", "Bearer token is required");
+  }
+
   const clientResult = createServiceRoleClient();
   if (!clientResult.ok) {
     return errorResponse(
@@ -114,6 +121,11 @@ serve(async (req: Request) => {
       "Analyzer database client is not configured",
       { missing: clientResult.missing },
     );
+  }
+
+  const { data: userData, error: userError } = await clientResult.client.auth.getUser(token);
+  if (userError || !userData.user) {
+    return errorResponse(401, "unauthorized", "Invalid user token");
   }
 
   const aliasMap = await loadPublicAliasMap(clientResult.client);
