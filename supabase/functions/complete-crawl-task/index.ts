@@ -42,15 +42,15 @@ Deno.serve(async (req: Request) => {
 
   const authorization = req.headers.get("authorization") ?? "";
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!token) {
-    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
-  }
-
-  const { data: userData, error: userError } =
-    await serviceClient.client.auth.getUser(token);
-  if (userError || !userData.user) {
-    return errorResponse(req, 401, "unauthorized", "Invalid user token");
+  if (!token || token !== serviceRoleKey) {
+    return errorResponse(
+      req,
+      401,
+      "unauthorized",
+      "Valid service role token is required",
+    );
   }
 
   const body = await readJsonBody(req);
