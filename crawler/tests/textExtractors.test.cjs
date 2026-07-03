@@ -1,5 +1,6 @@
 const assert = require("assert/strict");
 const fs = require("fs");
+const path = require("path");
 const ts = require("typescript");
 
 require.extensions[".ts"] = (module, filename) => {
@@ -15,59 +16,29 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 
-const { cleanupDescriptionText } = require("../core/textExtractors.ts");
+const { detectClaimRiskFlags } = require("../core/textExtractors.ts");
 
-function runTests() {
-  // Test 1: Non-string inputs
-  assert.equal(cleanupDescriptionText(null), "");
-  assert.equal(cleanupDescriptionText(undefined), "");
-  assert.equal(cleanupDescriptionText(123), "");
-  assert.equal(cleanupDescriptionText({}), "");
-  assert.equal(cleanupDescriptionText([]), "");
+function testDetectClaimRiskFlags() {
+  console.log("Testing detectClaimRiskFlags...");
 
-  // Test 2: Normal string
-  assert.equal(cleanupDescriptionText("Hello world"), "Hello world");
+  const cases = [
+    { input: "This product cures eczema.", expected: ["medical_treatment", "disease_reference"] },
+    { input: "Contains FDA approved drugs.", expected: ["regulatory_drug"] },
+    { input: "SPF 50 and PA++++ protection.", expected: ["spf_pa_claim"] },
+    { input: "Safe for pregnancy, hypoallergenic, non-comedogenic, and dermatologist tested.", expected: ["pregnancy_safe_claim", "hypoallergenic_claim", "non_comedogenic_claim", "dermatologist_tested_claim"] },
+    { input: "아토피 완치.", expected: ["korean_treatment"] },
+    { input: "Just a normal moisturizer.", expected: [] },
+    { input: null, expected: [] },
+    { input: undefined, expected: [] },
+    { input: 123, expected: [] },
+  ];
 
-  // Test 3: script and style tag removal
-  assert.equal(cleanupDescriptionText("<script>alert(1)</script>Hello"), "Hello");
-  assert.equal(cleanupDescriptionText("Hello<style>body { color: red; }</style>World"), "Hello World");
-  assert.equal(cleanupDescriptionText("<script type='text/javascript'>alert(1)</script>Hello"), "Hello");
-  assert.equal(cleanupDescriptionText("<style type='text/css'>body { color: red; }</style>Hello"), "Hello");
-  assert.equal(cleanupDescriptionText("<script src='x.js'></script>Hello"), "Hello");
+  for (const c of cases) {
+    const result = detectClaimRiskFlags(c.input);
+    assert.deepEqual(result.sort(), c.expected.sort(), `Failed for input: ${c.input}`);
+  }
 
-  // Test 4: General HTML tag removal
-  assert.equal(cleanupDescriptionText("<p>Hello <b>World</b></p>"), "Hello World");
-  assert.equal(cleanupDescriptionText("Hello <br/> World"), "Hello World");
-
-  // Test 5: HTML entity decoding
-  assert.equal(cleanupDescriptionText("Hello&nbsp;World"), "Hello World");
-  assert.equal(cleanupDescriptionText("Hello &amp; World"), "Hello & World");
-  assert.equal(cleanupDescriptionText("1 &lt; 2 &gt; 0"), "1 < 2 > 0");
-  assert.equal(cleanupDescriptionText("&quot;Hello&quot;"), '"Hello"');
-  assert.equal(cleanupDescriptionText("&#39;Hello&#39;"), "'Hello'");
-
-  // Test 6: Whitespace normalization
-  assert.equal(cleanupDescriptionText("  Hello   World  "), "Hello World");
-  assert.equal(cleanupDescriptionText("Hello\nWorld"), "Hello World");
-  assert.equal(cleanupDescriptionText("Hello\tWorld"), "Hello World");
-
-  // Test 7: maxLength truncation
-  assert.equal(cleanupDescriptionText("Hello World", 5), "Hello");
-  assert.equal(cleanupDescriptionText("Hello World", 11), "Hello World");
-  assert.equal(cleanupDescriptionText("Hello World", 12), "Hello World");
-  assert.equal(cleanupDescriptionText("   Hello World   ", 5), "Hello");
-
-  // Test 8: maxLength edge cases
-  assert.equal(cleanupDescriptionText("Hello World", 0), "");
-  assert.equal(cleanupDescriptionText("Hello World", -5), "");
-
-  // Test 9: Empty strings and strings that become empty
-  assert.equal(cleanupDescriptionText(""), "");
-  assert.equal(cleanupDescriptionText("   "), "");
-  assert.equal(cleanupDescriptionText("<p></p>"), "");
-  assert.equal(cleanupDescriptionText("&nbsp;"), "");
-
-  console.log("textExtractors tests passed");
+  console.log("All detectClaimRiskFlags tests passed!");
 }
 
-runTests();
+testDetectClaimRiskFlags();

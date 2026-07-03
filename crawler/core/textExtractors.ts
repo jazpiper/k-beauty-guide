@@ -5,11 +5,11 @@ type UnknownRecord = Record<string, unknown>;
 const DEFAULT_DESCRIPTION_MAX_LENGTH = 2000;
 
 const CLAIM_RISK_PATTERNS: Array<{ code: string; pattern: RegExp }> = [
-  { code: "medical_treatment", pattern: /\b(treat|treatment|cure|heals?)\b/i },
+  { code: "medical_treatment", pattern: /\b(treat|treatment|cures?|heals?)\b/i },
   { code: "disease_reference", pattern: /\b(acne|eczema|psoriasis|dermatitis)\b/i },
   { code: "regulatory_drug", pattern: /\b(drug|prescription|fda\s*approved)\b/i },
   { code: "spf_pa_claim", pattern: /\bspf\s*\d+|pa\+{1,4}\b/i },
-  { code: "pregnancy_safe_claim", pattern: /\bpregnancy[-\s]*safe\b/i },
+  { code: "pregnancy_safe_claim", pattern: /\b(pregnancy[-\s]*safe|safe[-\s]*for[-\s]*pregnancy)\b/i },
   { code: "hypoallergenic_claim", pattern: /\bhypoallergenic\b/i },
   { code: "non_comedogenic_claim", pattern: /\bnon[-\s]*comedogenic\b/i },
   { code: "dermatologist_tested_claim", pattern: /\bdermatologist[-\s]*tested\b/i },
