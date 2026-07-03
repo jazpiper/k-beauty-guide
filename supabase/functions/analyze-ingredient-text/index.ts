@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 import {
   errorResponse,
@@ -19,7 +18,8 @@ const FORBIDDEN_PROFILE_FIELDS = [
   "sensitivityProfile",
   "skinProfile",
 ];
-const DISCLAIMER = "Ingredient information is educational and not a medical diagnosis.";
+const DISCLAIMER =
+  "Ingredient information is educational and not a medical diagnosis.";
 
 type AliasRow = {
   ingredient_id: string;
@@ -62,7 +62,7 @@ type ParsedIngredient = {
   confidence: number;
 };
 
-let cachedAliasRows: AliasRow[] | null = null;
+let cachedAliasMap: Map<string, AliasRow[]> | null = null;
 let lastCacheUpdate: number = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -73,7 +73,9 @@ serve(async (req: Request) => {
   const body = await readJsonBody(req);
   if (body instanceof Response) return body;
 
-  const forbiddenProfileField = FORBIDDEN_PROFILE_FIELDS.find((field) => field in body);
+  const forbiddenProfileField = FORBIDDEN_PROFILE_FIELDS.find(
+    (field) => field in body,
+  );
   if (forbiddenProfileField) {
     return errorResponse(
       400,
@@ -114,25 +116,32 @@ serve(async (req: Request) => {
     );
   }
 
-  const aliasRows = await loadPublicAliasRows(clientResult.client);
-  if (aliasRows instanceof Response) return aliasRows;
+  const aliasMap = await loadPublicAliasMap(clientResult.client);
+  if (aliasMap instanceof Response) return aliasMap;
 
-  const parsedIngredients = tokens.map((token) => matchToken(token, aliasRows));
+  const parsedIngredients = tokens.map((token) => matchToken(token, aliasMap));
   const matchedIngredientIds = [
     ...new Set(
       parsedIngredients
         .map((ingredient) => ingredient.ingredientId)
-        .filter((ingredientId): ingredientId is string => Boolean(ingredientId)),
+        .filter((ingredientId): ingredientId is string =>
+          Boolean(ingredientId),
+        ),
     ),
   ];
 
-  const ruleRows = await loadActiveRules(clientResult.client, matchedIngredientIds);
+  const ruleRows = await loadActiveRules(
+    clientResult.client,
+    matchedIngredientIds,
+  );
   if (ruleRows instanceof Response) return ruleRows;
 
   return okResponse({
     parsedIngredients,
     flags: buildFlags(parsedIngredients, ruleRows),
-    unmatchedCount: parsedIngredients.filter((ingredient) => !ingredient.ingredientId).length,
+    unmatchedCount: parsedIngredients.filter(
+      (ingredient) => !ingredient.ingredientId,
+    ).length,
     disclaimer: DISCLAIMER,
   });
 });
@@ -162,15 +171,18 @@ function normalizeIngredientName(value: string): string {
     .trim();
 }
 
-async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] | Response> {
+async function loadPublicAliasMap(
+  client: SupabaseClient,
+): Promise<Map<string, AliasRow[]> | Response> {
   const now = Date.now();
-  if (cachedAliasRows && (now - lastCacheUpdate) < CACHE_TTL_MS) {
-    return cachedAliasRows;
+  if (cachedAliasMap && now - lastCacheUpdate < CACHE_TTL_MS) {
+    return cachedAliasMap;
   }
 
   const { data, error } = await client
     .from("ingredient_aliases")
-    .select(`
+    .select(
+      `
       ingredient_id,
       normalized_alias,
       confidence,
@@ -181,38 +193,56 @@ async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] |
         korean_name,
         source_status
       )
-    `)
+    `,
+    )
     .in("ingredients.source_status", ["verified", "imported"])
     .limit(1000000); // Retrieve all possible rows since this is a global cache now
 
   if (error) {
-    return errorResponse(500, "database_error", "Failed to load ingredient aliases", error.message);
+    return errorResponse(
+      500,
+      "database_error",
+      "Failed to load ingredient aliases",
+      error.message,
+    );
   }
 
-  const rows = ((data ?? []) as unknown as AliasRow[]).filter((row) =>
-    row.ingredients?.source_status === "verified" || row.ingredients?.source_status === "imported"
+  const rows = ((data ?? []) as unknown as AliasRow[]).filter(
+    (row) =>
+      row.ingredients?.source_status === "verified" ||
+      row.ingredients?.source_status === "imported",
   );
 
-  cachedAliasRows = rows;
+  const newAliasMap = new Map<string, AliasRow[]>();
+  for (const row of rows) {
+    const aliasKey = String(row.normalized_alias || "").trim();
+    if (!newAliasMap.has(aliasKey)) {
+      newAliasMap.set(aliasKey, []);
+    }
+    newAliasMap.get(aliasKey)!.push(row);
+  }
+
+  cachedAliasMap = newAliasMap;
   lastCacheUpdate = now;
-  return rows;
+  return newAliasMap;
 }
 
-function matchToken(token: IngredientToken, aliasRows: AliasRow[]): ParsedIngredient {
-  const match = aliasRows
-    .map((row) => {
-      const score = scoreAliasMatch(token.normalizedName, row.normalized_alias);
-      const aliasConfidence = Number(row.confidence ?? 1);
+function matchToken(
+  token: IngredientToken,
+  aliasMap: Map<string, AliasRow[]>,
+): ParsedIngredient {
+  const matchingRows = aliasMap.get(token.normalizedName) || [];
 
+  const match = matchingRows
+    .map((row) => {
+      const aliasConfidence = Number(row.confidence ?? 1);
       return {
         row,
-        score,
-        confidence: score * (Number.isFinite(aliasConfidence) ? aliasConfidence : 1),
+        confidence: Number.isFinite(aliasConfidence) ? aliasConfidence : 1,
       };
     })
-    .filter((candidate) => candidate.score > 0 && candidate.row.ingredients)
+    .filter((candidate) => candidate.row.ingredients)
     .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
       return b.confidence - a.confidence;
     })[0];
 
@@ -234,18 +264,9 @@ function matchToken(token: IngredientToken, aliasRows: AliasRow[]): ParsedIngred
     displayName: match.row.ingredients.canonical_name,
     inciName: match.row.ingredients.inci_name,
     koreanName: match.row.ingredients.korean_name,
-    matchMethod: match.score === 1 ? "exact" : "alias",
+    matchMethod: "exact", // Since it's a direct map lookup, it's always an exact alias match
     confidence: Number(match.confidence.toFixed(2)),
   };
-}
-
-function scoreAliasMatch(normalizedRawName: string, normalizedAlias: string): number {
-  const alias = String(normalizedAlias || "").trim();
-
-  if (!alias) return 0;
-  if (normalizedRawName === alias) return 1;
-
-  return 0;
 }
 
 // In-memory cache for safety rules to reduce database load
@@ -272,7 +293,8 @@ async function loadActiveRules(
   if (uncachedIds.length > 0) {
     const { data, error } = await client
       .from("ingredient_safety_rules")
-      .select(`
+      .select(
+        `
         id,
         ingredient_id,
         severity,
@@ -281,12 +303,18 @@ async function loadActiveRules(
         who_should_care,
         recommendation,
         version
-      `)
+      `,
+      )
       .in("ingredient_id", uncachedIds)
       .eq("active", true);
 
     if (error) {
-      return errorResponse(500, "database_error", "Failed to load safety rules", error.message);
+      return errorResponse(
+        500,
+        "database_error",
+        "Failed to load safety rules",
+        error.message,
+      );
     }
 
     const fetchedRules = (data ?? []) as unknown as RuleRow[];
@@ -310,7 +338,10 @@ async function loadActiveRules(
   return results;
 }
 
-function buildFlags(parsedIngredients: ParsedIngredient[], ruleRows: RuleRow[]) {
+function buildFlags(
+  parsedIngredients: ParsedIngredient[],
+  ruleRows: RuleRow[],
+) {
   return parsedIngredients.flatMap((ingredient) => {
     if (!ingredient.ingredientId) return [];
 
