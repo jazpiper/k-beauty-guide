@@ -218,19 +218,7 @@ function buildFallbackProductDetail(slug) {
   }
 
   const ingredients = selectFallbackIngredients(product);
-  const flags = ingredients
-    .filter((ingredient) => ingredient.safety === "Caution")
-    .map((ingredient) => ({
-      id: `${product.id}-${ingredient.id}`,
-      ingredientId: ingredient.id,
-      ingredientName: ingredient.name,
-      severity: "caution",
-      title: `${ingredient.name} may need extra care`,
-      description: ingredient.desc,
-      recommendation:
-        "Patch test first and avoid if you already know this ingredient bothers your skin.",
-      sourceLabel: "Static fallback",
-    }));
+  const flags = buildFallbackFlags(product, ingredients);
 
   return {
     product: {
@@ -256,20 +244,7 @@ function buildFallbackProductDetail(slug) {
       tags: ingredient.tags,
     })),
     flags,
-    sources: [
-      {
-        label: "Fallback product profile",
-        url:
-          product.brandOfficialUrl ||
-          `https://www.google.com/search?q=${encodeURIComponent(`${product.brand} ${product.name}`)}`,
-        evidence:
-          "Displayed from local fallback profile while live source data is unavailable.",
-      },
-      ...flags.map((flag) => ({
-        label: `${flag.ingredientName} safety note`,
-        evidence: flag.description || flag.recommendation,
-      })),
-    ],
+    sources: buildFallbackSources(product, flags),
     images: [],
     recommendedProducts: selectFallbackRecommendations(product, flags),
     safetyReport: {
@@ -280,6 +255,39 @@ function buildFallbackProductDetail(slug) {
     source: "static",
     error: null,
   };
+}
+
+function buildFallbackFlags(product, ingredients) {
+  return ingredients
+    .filter((ingredient) => ingredient.safety === "Caution")
+    .map((ingredient) => ({
+      id: `${product.id}-${ingredient.id}`,
+      ingredientId: ingredient.id,
+      ingredientName: ingredient.name,
+      severity: "caution",
+      title: `${ingredient.name} may need extra care`,
+      description: ingredient.desc,
+      recommendation:
+        "Patch test first and avoid if you already know this ingredient bothers your skin.",
+      sourceLabel: "Static fallback",
+    }));
+}
+
+function buildFallbackSources(product, flags) {
+  return [
+    {
+      label: "Fallback product profile",
+      url:
+        product.brandOfficialUrl ||
+        `https://www.google.com/search?q=${encodeURIComponent(`${product.brand} ${product.name}`)}`,
+      evidence:
+        "Displayed from local fallback profile while live source data is unavailable.",
+    },
+    ...flags.map((flag) => ({
+      label: `${flag.ingredientName} safety note`,
+      evidence: flag.description || flag.recommendation,
+    })),
+  ];
 }
 
 function mapRecommendedProduct(product) {
