@@ -3,8 +3,25 @@ import { normalizeIngredientName, splitIngredientText } from "./ingredientText";
 const DISCLAIMER = "Ingredient information is educational and not a medical diagnosis.";
 
 export function analyzeKnownIngredientsLocally(ingredientText, knownIngredients) {
+  const exactMatchMap = new Map();
+  const precomputedCandidates = [];
+
+  for (const ingredient of knownIngredients) {
+    const candidates = [ingredient.name, ingredient.korean, ...(ingredient.aliases ?? [])]
+      .map(normalizeIngredientName)
+      .filter(Boolean);
+
+    for (const candidate of candidates) {
+      if (!exactMatchMap.has(candidate)) {
+        exactMatchMap.set(candidate, ingredient);
+      }
+    }
+
+    precomputedCandidates.push({ ingredient, candidates });
+  }
+
   const parsedIngredients = splitIngredientText(ingredientText).map((token) => {
-    const match = findLocalMatch(token.normalizedName, knownIngredients);
+    const match = findLocalMatch(token.normalizedName, exactMatchMap, precomputedCandidates);
 
     if (!match) {
       return {
@@ -41,17 +58,22 @@ export function analyzeKnownIngredientsLocally(ingredientText, knownIngredients)
   };
 }
 
-function findLocalMatch(normalizedRawName, knownIngredients) {
-  return knownIngredients.find((ingredient) => {
-    const candidates = [ingredient.name, ingredient.korean, ...(ingredient.aliases ?? [])]
-      .map(normalizeIngredientName)
-      .filter(Boolean);
+function findLocalMatch(normalizedRawName, exactMatchMap, precomputedCandidates) {
+  const exactMatch = exactMatchMap.get(normalizedRawName);
+  if (exactMatch) {
+    return exactMatch;
+  }
 
-    return candidates.some((candidate) =>
-      normalizedRawName === candidate ||
-      normalizedRawName.includes(candidate)
-    );
-  });
+  for (let i = 0; i < precomputedCandidates.length; i++) {
+    const { ingredient, candidates } = precomputedCandidates[i];
+    for (let j = 0; j < candidates.length; j++) {
+      if (normalizedRawName.includes(candidates[j])) {
+        return ingredient;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function buildLocalFlags(parsedIngredients) {
