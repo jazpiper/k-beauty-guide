@@ -29,10 +29,34 @@ Deno.serve(async (req: Request) => {
   const methodError = requirePost(req);
   if (methodError) return methodError;
 
+  const serviceClient = createServiceRoleClient();
+  if (!serviceClient.ok) {
+    return errorResponse(
+      503,
+      "service_unavailable",
+      "Service role Supabase environment is not configured",
+      { missingEnv: serviceClient.missing },
+    );
+  }
+
+  const authorization = req.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) {
+    return errorResponse(401, "unauthorized", "Bearer token is required");
+  }
+
+  const { data: userData, error: userError } =
+    await serviceClient.client.auth.getUser(token);
+  if (userError || !userData.user) {
+    return errorResponse(401, "unauthorized", "Invalid user token");
+  }
+
   const body = await readJsonBody(req);
   if (body instanceof Response) return body;
 
-  const taskId = optionalStringField(body, "taskId") ?? pathId(req, "complete-crawl-task");
+  const taskId =
+    optionalStringField(body, "taskId") ?? pathId(req, "complete-crawl-task");
   const leaseToken = stringField(body, "leaseToken");
   const status = stringField(body, "status");
   const retryAfter = optionalStringField(body, "retryAfter");
@@ -47,8 +71,16 @@ Deno.serve(async (req: Request) => {
     return errorResponse(400, "validation_error", "leaseToken is required");
   }
 
-  if (!COMPLETION_STATUSES.includes(status as typeof COMPLETION_STATUSES[number])) {
-    return errorResponse(400, "validation_error", "status must be succeeded, failed, or needs_review");
+  if (
+    !COMPLETION_STATUSES.includes(
+      status as (typeof COMPLETION_STATUSES)[number],
+    )
+  ) {
+    return errorResponse(
+      400,
+      "validation_error",
+      "status must be succeeded, failed, or needs_review",
+    );
   }
 
   if (status !== "succeeded" && (!errorCode || !errorMessage)) {
@@ -60,27 +92,24 @@ Deno.serve(async (req: Request) => {
   }
 
   if (retryAfter && Number.isNaN(Date.parse(retryAfter))) {
-    return errorResponse(400, "validation_error", "retryAfter must be an ISO timestamp");
-  }
-
-  const serviceClient = createServiceRoleClient();
-  if (!serviceClient.ok) {
     return errorResponse(
-      503,
-      "service_unavailable",
-      "Service role Supabase environment is not configured for crawl task completion",
-      { missingEnv: serviceClient.missing },
+      400,
+      "validation_error",
+      "retryAfter must be an ISO timestamp",
     );
   }
 
-  const { data, error } = await serviceClient.client.rpc("complete_crawl_task", {
-    p_task_id: taskId,
-    p_lease_token: leaseToken,
-    p_status: status,
-    p_retry_after: status === "failed" ? retryAfter : null,
-    p_error_code: errorCode,
-    p_error_message: errorMessage,
-  });
+  const { data, error } = await serviceClient.client.rpc(
+    "complete_crawl_task",
+    {
+      p_task_id: taskId,
+      p_lease_token: leaseToken,
+      p_status: status,
+      p_retry_after: status === "failed" ? retryAfter : null,
+      p_error_code: errorCode,
+      p_error_message: errorMessage,
+    },
+  );
 
   if (error) {
     return mapCompleteError(error.message);
@@ -103,7 +132,9 @@ Deno.serve(async (req: Request) => {
     },
     snapshotId: optionalStringField(body, "snapshotId"),
     candidateId: optionalStringField(body, "candidateId"),
-    discoveredUrls: Array.isArray(body.discoveredUrls) ? body.discoveredUrls : [],
+    discoveredUrls: Array.isArray(body.discoveredUrls)
+      ? body.discoveredUrls
+      : [],
   });
 });
 
@@ -111,14 +142,24 @@ function mapCompleteError(message: string): Response {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("stale") || normalized.includes("lease")) {
-    return errorResponse(409, "conflict", "Crawl task lease is stale or mismatched", {
-      message,
-    });
+    return errorResponse(
+      409,
+      "conflict",
+      "Crawl task lease is stale or mismatched",
+      {
+        message,
+      },
+    );
   }
 
-  if (normalized.includes("invalid input syntax") || normalized.includes("invalid crawl task")) {
+  if (
+    normalized.includes("invalid input syntax") ||
+    normalized.includes("invalid crawl task")
+  ) {
     return errorResponse(400, "validation_error", message);
   }
 
-  return errorResponse(500, "internal_error", "Failed to complete crawl task", { message });
+  return errorResponse(500, "internal_error", "Failed to complete crawl task", {
+    message,
+  });
 }
