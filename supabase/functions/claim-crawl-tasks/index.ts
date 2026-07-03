@@ -34,6 +34,7 @@ Deno.serve(async (req: Request) => {
   const serviceClient = createServiceRoleClient();
   if (!serviceClient.ok) {
     return errorResponse(
+      req,
       503,
       "service_unavailable",
       "Service role Supabase environment is not configured",
@@ -45,13 +46,13 @@ Deno.serve(async (req: Request) => {
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
-    return errorResponse(401, "unauthorized", "Bearer token is required");
+    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
   }
 
   const { data: userData, error: userError } =
     await serviceClient.client.auth.getUser(token);
   if (userError || !userData.user) {
-    return errorResponse(401, "unauthorized", "Invalid user token");
+    return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
 
   const body = await readJsonBody(req);
@@ -59,20 +60,20 @@ Deno.serve(async (req: Request) => {
 
   const workerId = stringField(body, "workerId");
   if (!workerId) {
-    return errorResponse(400, "validation_error", "workerId is required");
+    return errorResponse(req, 400, "validation_error", "workerId is required");
   }
 
-  const limit = integerField(body, "limit", { min: 1, max: 25 });
+  const limit = integerField(req, body, "limit", { min: 1, max: 25 });
   if (limit instanceof Response) return limit;
 
-  const leaseSeconds = integerField(body, "leaseSeconds", {
+  const leaseSeconds = integerField(req, body, "leaseSeconds", {
     defaultValue: 300,
     min: 1,
     max: 900,
   });
   if (leaseSeconds instanceof Response) return leaseSeconds;
 
-  const taskTypes = validateTaskTypes(body.taskTypes);
+  const taskTypes = validateTaskTypes(req, body.taskTypes);
   if (taskTypes instanceof Response) return taskTypes;
 
   const { data, error } = await serviceClient.client.rpc(
@@ -87,12 +88,18 @@ Deno.serve(async (req: Request) => {
   );
 
   if (error) {
-    return errorResponse(500, "internal_error", "Failed to claim crawl tasks", {
-      message: error.message,
-    });
+    return errorResponse(
+      req,
+      500,
+      "internal_error",
+      "Failed to claim crawl tasks",
+      {
+        message: error.message,
+      },
+    );
   }
 
-  return okResponse({
+  return okResponse(req, {
     tasks: ((data ?? []) as ClaimedTaskRow[]).map((task) => ({
       id: task.id,
       sourceId: task.source_id,
@@ -107,13 +114,21 @@ Deno.serve(async (req: Request) => {
   });
 });
 
-function validateTaskTypes(value: unknown): string[] | null | Response {
+function validateTaskTypes(
+  req: Request,
+  value: unknown,
+): string[] | null | Response {
   if (value === undefined || value === null) {
     return null;
   }
 
   if (!Array.isArray(value)) {
-    return errorResponse(400, "validation_error", "taskTypes must be an array");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "taskTypes must be an array",
+    );
   }
 
   const invalidTaskType = value.find(
@@ -124,6 +139,7 @@ function validateTaskTypes(value: unknown): string[] | null | Response {
 
   if (invalidTaskType !== undefined) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "taskTypes must contain only supported crawl task types",

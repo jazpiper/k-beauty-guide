@@ -15,10 +15,15 @@ Deno.serve(async (req: Request) => {
 
   const candidateId = stringField(body, "candidateId");
   if (!candidateId) {
-    return errorResponse(400, "validation_error", "candidateId is required");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "candidateId is required",
+    );
   }
 
-  return okResponse({
+  return okResponse(req, {
     candidateId,
     duplicateSuggestionsCreated: 0,
     fieldSuggestionsCreated: 0,

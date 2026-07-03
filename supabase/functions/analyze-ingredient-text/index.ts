@@ -78,6 +78,7 @@ serve(async (req: Request) => {
   );
   if (forbiddenProfileField) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       `${forbiddenProfileField} is not accepted by the public analyzer`,
@@ -86,11 +87,12 @@ serve(async (req: Request) => {
 
   const ingredientText = stringField(body, "ingredientText");
   if (!ingredientText) {
-    return errorResponse(400, "validation_error", "ingredientText is required");
+    return errorResponse(req, 400, "validation_error", "ingredientText is required");
   }
 
   if (ingredientText.length > MAX_INGREDIENT_TEXT_LENGTH) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "ingredientText must be 10,000 characters or fewer",
@@ -100,6 +102,7 @@ serve(async (req: Request) => {
   const tokens = splitIngredientText(ingredientText);
   if (tokens.length === 0) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "ingredientText must contain at least one ingredient name",
@@ -110,12 +113,13 @@ serve(async (req: Request) => {
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
-    return errorResponse(401, "unauthorized", "Bearer token is required");
+    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
   }
 
   const clientResult = createServiceRoleClient();
   if (!clientResult.ok) {
     return errorResponse(
+      req,
       503,
       "service_unavailable",
       "Analyzer database client is not configured",
@@ -125,10 +129,10 @@ serve(async (req: Request) => {
 
   const { data: userData, error: userError } = await clientResult.client.auth.getUser(token);
   if (userError || !userData.user) {
-    return errorResponse(401, "unauthorized", "Invalid user token");
+    return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
 
-  const aliasMap = await loadPublicAliasMap(clientResult.client);
+  const aliasMap = await loadPublicAliasMap(req, clientResult.client);
   if (aliasMap instanceof Response) return aliasMap;
 
   const parsedIngredients = tokens.map((token) => matchToken(token, aliasMap));
@@ -143,12 +147,13 @@ serve(async (req: Request) => {
   ];
 
   const ruleRows = await loadActiveRules(
+    req,
     clientResult.client,
     matchedIngredientIds,
   );
   if (ruleRows instanceof Response) return ruleRows;
 
-  return okResponse({
+  return okResponse(req, {
     parsedIngredients,
     flags: buildFlags(parsedIngredients, ruleRows),
     unmatchedCount: parsedIngredients.filter(
@@ -184,6 +189,7 @@ function normalizeIngredientName(value: string): string {
 }
 
 async function loadPublicAliasMap(
+  req: Request,
   client: SupabaseClient,
 ): Promise<Map<string, AliasRow[]> | Response> {
   const now = Date.now();
@@ -212,6 +218,7 @@ async function loadPublicAliasMap(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "database_error",
       "Failed to load ingredient aliases",
@@ -285,6 +292,7 @@ function matchToken(
 const ACTIVE_RULES_CACHE = new Map<string, RuleRow[]>();
 
 async function loadActiveRules(
+  req: Request,
   client: SupabaseClient,
   ingredientIds: string[],
 ): Promise<RuleRow[] | Response> {
@@ -322,6 +330,7 @@ async function loadActiveRules(
 
     if (error) {
       return errorResponse(
+        req,
         500,
         "database_error",
         "Failed to load safety rules",
