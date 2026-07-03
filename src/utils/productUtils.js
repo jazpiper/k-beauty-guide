@@ -1,15 +1,6 @@
-export const severityRank = {
-  restricted: 4,
-  avoid_if_sensitive: 3,
-  high: 3,
-  medium: 2,
-  caution: 2,
-  info: 1,
-  low: 1,
-  review: 1,
-  safe: 0,
-  none: 0,
-};
+import { SEVERITY_RANK } from "../constants/severity";
+
+export const severityRank = SEVERITY_RANK;
 
 export function isSafeHttpUrl(value) {
   if (!value || typeof value !== "string") return false;

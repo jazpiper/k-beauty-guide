@@ -1,6 +1,7 @@
 import { fallbackProducts } from "../data/products";
 import { fallbackIngredients } from "../data/ingredients";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
+import { severityRank } from "../utils/productUtils";
 
 const fallbackIngredientsMap = new Map(fallbackIngredients.map((ing) => [ing.id, ing]));
 
@@ -359,13 +360,6 @@ function selectFallbackRecommendations(product, flags) {
 }
 
 function getHighestSeverity(flags) {
-  const severityRank = {
-    restricted: 4,
-    avoid_if_sensitive: 3,
-    caution: 2,
-    info: 1,
-  };
-
   return flags.reduce((highest, flag) => {
     const currentRank = severityRank[flag.severity] ?? 0;
     const highestRank = severityRank[highest] ?? 0;
