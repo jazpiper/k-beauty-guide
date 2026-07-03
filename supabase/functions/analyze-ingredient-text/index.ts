@@ -1,3 +1,6 @@
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+
 import {
   errorResponse,
   okResponse,
@@ -6,7 +9,7 @@ import {
   stringField,
 } from "../_shared/http.ts";
 import { createServiceRoleClient } from "../_shared/supabase.ts";
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const MAX_INGREDIENT_TEXT_LENGTH = 10_000;
 const FORBIDDEN_PROFILE_FIELDS = [
@@ -59,7 +62,11 @@ type ParsedIngredient = {
   confidence: number;
 };
 
-Deno.serve(async (req: Request) => {
+let cachedAliasRows: AliasRow[] | null = null;
+let lastCacheUpdate: number = 0;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+serve(async (req: Request) => {
   const methodError = requirePost(req);
   if (methodError) return methodError;
 
@@ -156,6 +163,11 @@ function normalizeIngredientName(value: string): string {
 }
 
 async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] | Response> {
+  const now = Date.now();
+  if (cachedAliasRows && (now - lastCacheUpdate) < CACHE_TTL_MS) {
+    return cachedAliasRows;
+  }
+
   const { data, error } = await client
     .from("ingredient_aliases")
     .select(`
@@ -171,15 +183,19 @@ async function loadPublicAliasRows(client: SupabaseClient): Promise<AliasRow[] |
       )
     `)
     .in("ingredients.source_status", ["verified", "imported"])
-    .limit(1000);
+    .limit(1000000); // Retrieve all possible rows since this is a global cache now
 
   if (error) {
     return errorResponse(500, "database_error", "Failed to load ingredient aliases", error.message);
   }
 
-  return ((data ?? []) as unknown as AliasRow[]).filter((row) =>
+  const rows = ((data ?? []) as unknown as AliasRow[]).filter((row) =>
     row.ingredients?.source_status === "verified" || row.ingredients?.source_status === "imported"
   );
+
+  cachedAliasRows = rows;
+  lastCacheUpdate = now;
+  return rows;
 }
 
 function matchToken(token: IngredientToken, aliasRows: AliasRow[]): ParsedIngredient {
@@ -232,32 +248,66 @@ function scoreAliasMatch(normalizedRawName: string, normalizedAlias: string): nu
   return 0;
 }
 
+// In-memory cache for safety rules to reduce database load
+const ACTIVE_RULES_CACHE = new Map<string, RuleRow[]>();
+
 async function loadActiveRules(
   client: SupabaseClient,
   ingredientIds: string[],
 ): Promise<RuleRow[] | Response> {
   if (ingredientIds.length === 0) return [];
 
-  const { data, error } = await client
-    .from("ingredient_safety_rules")
-    .select(`
-      id,
-      ingredient_id,
-      severity,
-      title,
-      why_it_matters,
-      who_should_care,
-      recommendation,
-      version
-    `)
-    .in("ingredient_id", ingredientIds)
-    .eq("active", true);
+  const uniqueIds = [...new Set(ingredientIds)];
+  const uncachedIds: string[] = [];
+  const results: RuleRow[] = [];
 
-  if (error) {
-    return errorResponse(500, "database_error", "Failed to load safety rules", error.message);
+  for (const id of uniqueIds) {
+    if (ACTIVE_RULES_CACHE.has(id)) {
+      results.push(...(ACTIVE_RULES_CACHE.get(id) || []));
+    } else {
+      uncachedIds.push(id);
+    }
   }
 
-  return (data ?? []) as unknown as RuleRow[];
+  if (uncachedIds.length > 0) {
+    const { data, error } = await client
+      .from("ingredient_safety_rules")
+      .select(`
+        id,
+        ingredient_id,
+        severity,
+        title,
+        why_it_matters,
+        who_should_care,
+        recommendation,
+        version
+      `)
+      .in("ingredient_id", uncachedIds)
+      .eq("active", true);
+
+    if (error) {
+      return errorResponse(500, "database_error", "Failed to load safety rules", error.message);
+    }
+
+    const fetchedRules = (data ?? []) as unknown as RuleRow[];
+
+    // Group rules by ingredient_id
+    const rulesByIngredientId = new Map<string, RuleRow[]>();
+    for (const id of uncachedIds) {
+      rulesByIngredientId.set(id, []);
+    }
+    for (const rule of fetchedRules) {
+      rulesByIngredientId.get(rule.ingredient_id)?.push(rule);
+    }
+
+    // Populate cache and add to results
+    for (const [id, rules] of rulesByIngredientId.entries()) {
+      ACTIVE_RULES_CACHE.set(id, rules);
+      results.push(...rules);
+    }
+  }
+
+  return results;
 }
 
 function buildFlags(parsedIngredients: ParsedIngredient[], ruleRows: RuleRow[]) {
