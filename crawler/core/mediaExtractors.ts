@@ -91,15 +91,16 @@ function extractElementsByTag(html: string, tag: string): HtmlElementMatch[] {
   return matches;
 }
 
+const CONTAINER_PATTERNS_MEDIA = ["div", "section", "article", "main", "ul"].map(
+  (tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi")
+);
+
 function extractContainerById(html: string, id: string): string[] {
   const containers: string[] = [];
-  for (const tag of ["div", "section", "article", "main", "ul"]) {
-    const pattern = new RegExp(
-      `<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`,
-      "gi",
-    );
+  for (const pattern of CONTAINER_PATTERNS_MEDIA) {
     for (const match of html.matchAll(pattern)) {
       const attrs = match[1] ?? "";
+      if (!attrs.includes("id")) continue;
       const elementId = getAttrValue(attrs, "id");
       if (elementId === id) containers.push(match[2] ?? "");
     }

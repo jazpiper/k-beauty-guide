@@ -114,15 +114,16 @@ function extractTagInnerHtml(html: string, tag: string): string[] {
   return values;
 }
 
+const CONTAINER_PATTERNS_TEXT = ["div", "section", "article", "main", "ul", "ol"].map(
+  (tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi")
+);
+
 function extractContainerById(html: string, id: string): string[] {
   const containers: string[] = [];
-  for (const tag of ["div", "section", "article", "main", "ul", "ol"]) {
-    const pattern = new RegExp(
-      `<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`,
-      "gi",
-    );
+  for (const pattern of CONTAINER_PATTERNS_TEXT) {
     for (const match of html.matchAll(pattern)) {
       const attrs = match[1] ?? "";
+      if (!attrs.includes("id")) continue;
       const elementId = getAttrValue(attrs, "id");
       if (elementId === id) containers.push(match[2] ?? "");
     }
