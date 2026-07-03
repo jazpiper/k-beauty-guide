@@ -102,53 +102,13 @@ function mapProductRow(row, index) {
 
 function mapProductDetail(detail, source) {
   const flags = detail.safetyReport?.flags ?? [];
-  const safetyFlagCount = flags.length;
   const detailProduct = detail.product || detail;
-  const resolvedCategory =
-    detailProduct.category || detail.category || "Product";
-  const resolvedPriceKrw = detailProduct.priceKrw ?? detail.priceKrw;
-  const resolvedCurrency = detailProduct.currency ?? detail.currency;
-  const resolvedPublishedAt = detailProduct.publishedAt ?? detail.publishedAt;
-  const resolvedUpdatedAt = detailProduct.updatedAt ?? detail.updatedAt;
+
+  const product = buildResolvedProduct(detailProduct, detail, flags);
+  product.source = source;
 
   return {
-    product: {
-      id: detailProduct.id,
-      slug: detailProduct.slug,
-      name: detailProduct.name,
-      brand:
-        detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
-      brandName:
-        detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
-      brandOfficialUrl:
-        detailProduct.brand?.officialUrl ?? detailProduct.brandOfficialUrl,
-      price: formatKrw(resolvedPriceKrw, resolvedCurrency),
-      priceKrw: resolvedPriceKrw,
-      currency: resolvedCurrency,
-      primaryImageUrl: detailProduct.primaryImageUrl ?? detail.primaryImageUrl,
-      category: resolvedCategory,
-      skin: detailProduct.skin || "All Skin",
-      description:
-        detailProduct.description ||
-        detail.description ||
-        "Product detail is being reviewed.",
-      emoji: CATEGORY_EMOJI[resolvedCategory] || "🌸",
-      tag:
-        safetyFlagCount > 0
-          ? `${safetyFlagCount} safety note${safetyFlagCount > 1 ? "s" : ""}`
-          : "Published",
-      safetyFlagCount,
-      highestSeverity: getHighestSeverity(flags),
-      publishedAt: resolvedPublishedAt,
-      updatedAt: resolvedUpdatedAt,
-      buyLinks:
-        detailProduct.buyLinks ??
-        detailProduct.purchaseLinks ??
-        detail.buyLinks ??
-        detail.purchaseLinks ??
-        [],
-      source,
-    },
+    product,
     ingredients: (detail.ingredients ?? []).map(mapDetailIngredient),
     flags: flags.map(mapSafetyFlag),
     sources: detail.sources ?? [],
@@ -162,6 +122,53 @@ function mapProductDetail(detail, source) {
       .filter(Boolean),
     safetyReport: detail.safetyReport ?? { flags: [] },
     source,
+  };
+}
+
+function buildResolvedProduct(detailProduct, detail, flags) {
+  const safetyFlagCount = flags.length;
+  const resolvedCategory =
+    detailProduct.category || detail.category || "Product";
+  const resolvedPriceKrw = detailProduct.priceKrw ?? detail.priceKrw;
+  const resolvedCurrency = detailProduct.currency ?? detail.currency;
+  const resolvedPublishedAt = detailProduct.publishedAt ?? detail.publishedAt;
+  const resolvedUpdatedAt = detailProduct.updatedAt ?? detail.updatedAt;
+
+  return {
+    id: detailProduct.id,
+    slug: detailProduct.slug,
+    name: detailProduct.name,
+    brand:
+      detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
+    brandName:
+      detailProduct.brand?.name ?? detailProduct.brandName ?? "Unknown Brand",
+    brandOfficialUrl:
+      detailProduct.brand?.officialUrl ?? detailProduct.brandOfficialUrl,
+    price: formatKrw(resolvedPriceKrw, resolvedCurrency),
+    priceKrw: resolvedPriceKrw,
+    currency: resolvedCurrency,
+    primaryImageUrl: detailProduct.primaryImageUrl ?? detail.primaryImageUrl,
+    category: resolvedCategory,
+    skin: detailProduct.skin || "All Skin",
+    description:
+      detailProduct.description ||
+      detail.description ||
+      "Product detail is being reviewed.",
+    emoji: CATEGORY_EMOJI[resolvedCategory] || "🌸",
+    tag:
+      safetyFlagCount > 0
+        ? `${safetyFlagCount} safety note${safetyFlagCount > 1 ? "s" : ""}`
+        : "Published",
+    safetyFlagCount,
+    highestSeverity: getHighestSeverity(flags),
+    publishedAt: resolvedPublishedAt,
+    updatedAt: resolvedUpdatedAt,
+    buyLinks:
+      detailProduct.buyLinks ??
+      detailProduct.purchaseLinks ??
+      detail.buyLinks ??
+      detail.purchaseLinks ??
+      [],
   };
 }
 
