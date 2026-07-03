@@ -31,6 +31,29 @@ Deno.serve(async (req: Request) => {
   const methodError = requirePost(req);
   if (methodError) return methodError;
 
+  const serviceClient = createServiceRoleClient();
+  if (!serviceClient.ok) {
+    return errorResponse(
+      503,
+      "service_unavailable",
+      "Service role Supabase environment is not configured",
+      { missingEnv: serviceClient.missing },
+    );
+  }
+
+  const authorization = req.headers.get("authorization") ?? "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) {
+    return errorResponse(401, "unauthorized", "Bearer token is required");
+  }
+
+  const { data: userData, error: userError } =
+    await serviceClient.client.auth.getUser(token);
+  if (userError || !userData.user) {
+    return errorResponse(401, "unauthorized", "Invalid user token");
+  }
+
   const body = await readJsonBody(req);
   if (body instanceof Response) return body;
 
@@ -52,23 +75,16 @@ Deno.serve(async (req: Request) => {
   const taskTypes = validateTaskTypes(body.taskTypes);
   if (taskTypes instanceof Response) return taskTypes;
 
-  const serviceClient = createServiceRoleClient();
-  if (!serviceClient.ok) {
-    return errorResponse(
-      503,
-      "service_unavailable",
-      "Service role Supabase environment is not configured for crawl task claiming",
-      { missingEnv: serviceClient.missing },
-    );
-  }
-
-  const { data, error } = await serviceClient.client.rpc("claim_due_crawl_tasks", {
-    p_worker_id: workerId,
-    p_source_id: optionalStringField(body, "sourceId"),
-    p_task_types: taskTypes,
-    p_limit: limit,
-    p_lease_seconds: leaseSeconds,
-  });
+  const { data, error } = await serviceClient.client.rpc(
+    "claim_due_crawl_tasks",
+    {
+      p_worker_id: workerId,
+      p_source_id: optionalStringField(body, "sourceId"),
+      p_task_types: taskTypes,
+      p_limit: limit,
+      p_lease_seconds: leaseSeconds,
+    },
+  );
 
   if (error) {
     return errorResponse(500, "internal_error", "Failed to claim crawl tasks", {
@@ -100,8 +116,10 @@ function validateTaskTypes(value: unknown): string[] | null | Response {
     return errorResponse(400, "validation_error", "taskTypes must be an array");
   }
 
-  const invalidTaskType = value.find((item) =>
-    typeof item !== "string" || !TASK_TYPES.includes(item as typeof TASK_TYPES[number])
+  const invalidTaskType = value.find(
+    (item) =>
+      typeof item !== "string" ||
+      !TASK_TYPES.includes(item as (typeof TASK_TYPES)[number]),
   );
 
   if (invalidTaskType !== undefined) {
