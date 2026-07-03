@@ -15,14 +15,18 @@ Deno.serve(async (req: Request) => {
 
   const analysisRunId = stringField(body, "analysisRunId");
   if (!analysisRunId) {
-    return errorResponse(400, "validation_error", "analysisRunId is required");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "analysisRunId is required",
+    );
   }
 
-  return okResponse({
+  return okResponse(req, {
     analysisRunId,
     status: "queued",
     flagsWritten: 0,
-    note:
-      "MVP shell only. Final safety classification must come from deterministic safety rules, not LLM output.",
+    note: "MVP shell only. Final safety classification must come from deterministic safety rules, not LLM output.",
   });
 });

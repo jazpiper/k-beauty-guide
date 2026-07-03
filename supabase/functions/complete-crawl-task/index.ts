@@ -32,6 +32,7 @@ Deno.serve(async (req: Request) => {
   const serviceClient = createServiceRoleClient();
   if (!serviceClient.ok) {
     return errorResponse(
+      req,
       503,
       "service_unavailable",
       "Service role Supabase environment is not configured",
@@ -43,13 +44,13 @@ Deno.serve(async (req: Request) => {
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
-    return errorResponse(401, "unauthorized", "Bearer token is required");
+    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
   }
 
   const { data: userData, error: userError } =
     await serviceClient.client.auth.getUser(token);
   if (userError || !userData.user) {
-    return errorResponse(401, "unauthorized", "Invalid user token");
+    return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
 
   const body = await readJsonBody(req);
@@ -64,11 +65,11 @@ Deno.serve(async (req: Request) => {
   const errorMessage = optionalStringField(body, "errorMessage");
 
   if (!taskId) {
-    return errorResponse(400, "validation_error", "taskId is required");
+    return errorResponse(req, 400, "validation_error", "taskId is required");
   }
 
   if (!leaseToken) {
-    return errorResponse(400, "validation_error", "leaseToken is required");
+    return errorResponse(req, 400, "validation_error", "leaseToken is required");
   }
 
   if (
@@ -77,6 +78,7 @@ Deno.serve(async (req: Request) => {
     )
   ) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "status must be succeeded, failed, or needs_review",
@@ -85,6 +87,7 @@ Deno.serve(async (req: Request) => {
 
   if (status !== "succeeded" && (!errorCode || !errorMessage)) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "failed and needs_review completions require errorCode and errorMessage",
@@ -93,6 +96,7 @@ Deno.serve(async (req: Request) => {
 
   if (retryAfter && Number.isNaN(Date.parse(retryAfter))) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "retryAfter must be an ISO timestamp",
@@ -112,11 +116,11 @@ Deno.serve(async (req: Request) => {
   );
 
   if (error) {
-    return mapCompleteError(error.message);
+    return mapCompleteError(req, error.message);
   }
 
   const task = data as CrawlTaskRow;
-  return okResponse({
+  return okResponse(req, {
     task: {
       id: task.id,
       sourceId: task.source_id,
@@ -138,11 +142,12 @@ Deno.serve(async (req: Request) => {
   });
 });
 
-function mapCompleteError(message: string): Response {
+function mapCompleteError(req: Request, message: string): Response {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("stale") || normalized.includes("lease")) {
     return errorResponse(
+      req,
       409,
       "conflict",
       "Crawl task lease is stale or mismatched",
@@ -156,10 +161,16 @@ function mapCompleteError(message: string): Response {
     normalized.includes("invalid input syntax") ||
     normalized.includes("invalid crawl task")
   ) {
-    return errorResponse(400, "validation_error", message);
+    return errorResponse(req, 400, "validation_error", message);
   }
 
-  return errorResponse(500, "internal_error", "Failed to complete crawl task", {
-    message,
-  });
+  return errorResponse(
+    req,
+    500,
+    "internal_error",
+    "Failed to complete crawl task",
+    {
+      message,
+    },
+  );
 }

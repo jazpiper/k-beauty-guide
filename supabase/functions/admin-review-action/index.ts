@@ -74,6 +74,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const serviceClient = createServiceRoleClient();
   if (!serviceClient.ok) {
     return errorResponse(
+      req,
       500,
       "configuration_error",
       "Missing Supabase service role configuration",
@@ -96,7 +97,7 @@ async function handleRequest(req: Request): Promise<Response> {
   });
 
   if (result instanceof Response) return result;
-  return okResponse(result);
+  return okResponse(req, result);
 }
 
 function validateRequest(
@@ -108,6 +109,7 @@ function validateRequest(
 ): Response | null {
   if (!REVIEW_ACTIONS.includes(action as ReviewAction)) {
     return errorResponse(
+      req,
       400,
       "validation_error",
       "action must be approve, reject, block, or assign",
@@ -115,11 +117,21 @@ function validateRequest(
   }
 
   if (!reviewItemId) {
-    return errorResponse(400, "validation_error", "reviewItemId is required");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "reviewItemId is required",
+    );
   }
 
   if (!idempotencyKey) {
-    return errorResponse(400, "validation_error", "idempotencyKey is required");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "idempotencyKey is required",
+    );
   }
 
   if (
@@ -128,11 +140,21 @@ function validateRequest(
     ) &&
     !comment
   ) {
-    return errorResponse(400, "validation_error", `${action} requires comment`);
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      `${action} requires comment`,
+    );
   }
 
   if (action === "assign" && !assignedTo) {
-    return errorResponse(400, "validation_error", "assign requires assignedTo");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "assign requires assignedTo",
+    );
   }
 
   return null;
@@ -146,12 +168,12 @@ async function requireActiveAdmin(
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
-    return errorResponse(401, "unauthorized", "Bearer token is required");
+    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
   }
 
   const { data: userData, error: userError } = await client.auth.getUser(token);
   if (userError || !userData.user) {
-    return errorResponse(401, "unauthorized", "Invalid user token");
+    return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
 
   const { data: adminUser, error: adminError } = await client
@@ -163,6 +185,7 @@ async function requireActiveAdmin(
 
   if (adminError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to verify admin user",
@@ -171,7 +194,12 @@ async function requireActiveAdmin(
   }
 
   if (!adminUser) {
-    return errorResponse(403, "forbidden", "Active admin user is required");
+    return errorResponse(
+      req,
+      403,
+      "forbidden",
+      "Active admin user is required",
+    );
   }
 
   return adminUser as AdminUser;
@@ -208,6 +236,7 @@ async function applyReviewAction(
 
   if (reviewError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to load review item",
@@ -216,7 +245,7 @@ async function applyReviewAction(
   }
 
   if (!reviewItem) {
-    return errorResponse(404, "not_found", "Review item not found");
+    return errorResponse(req, 404, "not_found", "Review item not found");
   }
 
   const previousValue = { reviewItem };
@@ -226,6 +255,7 @@ async function applyReviewAction(
     )
   ) {
     return errorResponse(
+      req,
       409,
       "already_resolved",
       "Review item is already resolved",
@@ -269,6 +299,7 @@ async function applyReviewAction(
 
   if (updateError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to update review item",
@@ -320,6 +351,7 @@ async function findExistingAudit(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to check idempotency key",
@@ -355,6 +387,7 @@ async function claimReviewItem(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to claim review item",
@@ -364,6 +397,7 @@ async function claimReviewItem(
 
   if (!data) {
     return errorResponse(
+      req,
       409,
       "already_resolved",
       "Review item changed before action could be applied",
@@ -407,6 +441,7 @@ async function approveReviewItem(
 
   if (candidateError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to load product candidate",
@@ -417,6 +452,7 @@ async function approveReviewItem(
   const productCandidate = candidate as ProductCandidate;
   if (!productCandidate.brand_name) {
     return errorResponse(
+      req,
       409,
       "approval_validation_error",
       "Product candidate requires brand_name before approval",
@@ -464,6 +500,7 @@ async function approveReviewItem(
 
   if (productResult.error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to publish product candidate",
@@ -493,6 +530,7 @@ async function approveReviewItem(
 
   if (candidateUpdateError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to mark product candidate approved",
@@ -524,6 +562,7 @@ async function markCandidateStatus(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to update product candidate status",
@@ -547,6 +586,7 @@ async function findOrCreateBrand(
 
   if (findError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to find brand",
@@ -564,6 +604,7 @@ async function findOrCreateBrand(
 
   if (insertError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to create brand",
@@ -589,6 +630,7 @@ async function findExistingProductId(
 
     if (sourceProductError) {
       return errorResponse(
+        req,
         500,
         "db_error",
         "Failed to find existing product source",
@@ -609,6 +651,7 @@ async function findExistingProductId(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to find existing product source",
@@ -634,6 +677,7 @@ async function ensureProductSource(
 
   if (findError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to find product source",
@@ -660,6 +704,7 @@ async function ensureProductSource(
 
   if (insertError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to create product source",
@@ -688,6 +733,7 @@ async function ensureProductImages(
 
   if (findError) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to find product images",
@@ -714,6 +760,7 @@ async function ensureProductImages(
 
     if (insertError) {
       return errorResponse(
+        req,
         500,
         "db_error",
         "Failed to create product images",
@@ -754,6 +801,7 @@ async function writeAuditLog(
 
   if (error) {
     return errorResponse(
+      req,
       500,
       "db_error",
       "Failed to write audit log",
