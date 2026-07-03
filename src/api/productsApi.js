@@ -2,6 +2,8 @@ import { fallbackProducts } from "../data/products";
 import { fallbackIngredients } from "../data/ingredients";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 
+const fallbackIngredientsMap = new Map(fallbackIngredients.map((ing) => [ing.id, ing]));
+
 const PRODUCT_COLORS = ["#FFE4EC", "#FFD6E7", "#E8F4FD", "#E8F8E8", "#FFF3E0", "#F3E5F5"];
 const CATEGORY_EMOJI = {
   Cleanser: "🧼",
@@ -262,7 +264,7 @@ function selectFallbackIngredients(product) {
   const ids = matched?.[1] ?? ["hyaluronic-acid", "niacinamide", "centella-asiatica", "fragrance"];
 
   return ids
-    .map((id) => fallbackIngredients.find((ingredient) => ingredient.id === id))
+    .map((id) => fallbackIngredientsMap.get(id))
     .filter(Boolean);
 }
 
