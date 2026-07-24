@@ -1,5 +1,3 @@
-
-
 const trackingParamPrefixes = ["utm_"];
 const trackingParamNames = new Set([
   "fbclid",
@@ -72,4 +70,3 @@ export function dedupeCandidateImageUrls(imageUrls: string[]): string[] {
 
   return deduped;
 }
-

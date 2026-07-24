@@ -1,5 +1,7 @@
 import { scoreCandidate } from "./confidenceScorer";
 import { dedupeCandidateImageUrls } from "./dedupe";
+import { getAttrValue } from "./utils";
+
 import {
   extractImageCandidatesFromDomSelectors,
   extractImageCandidatesFromJsonLd,
@@ -50,11 +52,6 @@ const PARSER_VERSION = "product-media-description-v1";
 function asRecord(value: unknown): UnknownRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as UnknownRecord;
-}
-
-function getAttrValue(attrs: string, attrName: string): string | undefined {
-  const pattern = new RegExp(`\\b${attrName}\\s*=\\s*["']([^"']+)["']`, "i");
-  return attrs.match(pattern)?.[1];
 }
 
 function normalizeWhitespace(value: unknown): string {
@@ -117,7 +114,9 @@ function getProductRecords(payloads: unknown[]): UnknownRecord[] {
   return records;
 }
 
-function imageEvidenceByUrl(productRecords: UnknownRecord[]): Map<string, string> {
+function imageEvidenceByUrl(
+  productRecords: UnknownRecord[],
+): Map<string, string> {
   const evidence = new Map<string, string>();
 
   for (const product of productRecords) {
@@ -137,7 +136,9 @@ function imageEvidenceByUrl(productRecords: UnknownRecord[]): Map<string, string
   return evidence;
 }
 
-function descriptionEvidenceByText(productRecords: UnknownRecord[]): Map<string, string> {
+function descriptionEvidenceByText(
+  productRecords: UnknownRecord[],
+): Map<string, string> {
   const evidence = new Map<string, string>();
 
   for (const product of productRecords) {
@@ -206,7 +207,9 @@ function enrichImageCandidates(
   });
 }
 
-function dedupeImages(candidates: ProductImageCandidate[]): ProductImageCandidate[] {
+function dedupeImages(
+  candidates: ProductImageCandidate[],
+): ProductImageCandidate[] {
   const seen = new Set<string>();
   const output: ProductImageCandidate[] = [];
 
@@ -252,8 +255,11 @@ function getDomImageDetails(
     const imgAttrs = imgTags[index]?.[1] ?? "";
     return {
       altText: getAttrValue(imgAttrs, "alt"),
-      width: Number.parseInt(getAttrValue(imgAttrs, "width") ?? "", 10) || undefined,
-      height: Number.parseInt(getAttrValue(imgAttrs, "height") ?? "", 10) || undefined,
+      width:
+        Number.parseInt(getAttrValue(imgAttrs, "width") ?? "", 10) || undefined,
+      height:
+        Number.parseInt(getAttrValue(imgAttrs, "height") ?? "", 10) ||
+        undefined,
     };
   }
 
@@ -286,7 +292,8 @@ function enrichTextCandidates(
   } = {},
 ): ProductTextCandidate[] {
   return candidates.map((candidate) => {
-    const fieldType = options.fieldType ?? fieldTypeForSelector(candidate.selector);
+    const fieldType =
+      options.fieldType ?? fieldTypeForSelector(candidate.selector);
     return {
       ...candidate,
       fieldType,
@@ -314,7 +321,9 @@ function dedupeTextCandidates(
   return output;
 }
 
-function createConfidenceHints(candidate: Omit<ProductCandidate, "confidenceScore">): ConfidenceHint[] {
+function createConfidenceHints(
+  candidate: Omit<ProductCandidate, "confidenceScore">,
+): ConfidenceHint[] {
   const hints: ConfidenceHint[] = [];
   if (!candidate.brandName) {
     hints.push({
@@ -340,7 +349,9 @@ function createConfidenceHints(candidate: Omit<ProductCandidate, "confidenceScor
   return hints;
 }
 
-function collectImages(input: ProductMediaDescriptionExtractionInput): ProductImageCandidate[] {
+function collectImages(
+  input: ProductMediaDescriptionExtractionInput,
+): ProductImageCandidate[] {
   const jsonLdPayloads = scriptJsonLdPayloads(input.html);
   const productRecords = getProductRecords(jsonLdPayloads);
   const evidence = imageEvidenceByUrl(productRecords);
@@ -363,10 +374,13 @@ function collectImages(input: ProductMediaDescriptionExtractionInput): ProductIm
   }
 
   candidates.push(
-    ...enrichImageCandidates(extractImageCandidatesFromOpenGraph(input.html ?? ""), {
-      fallbackEvidence: "meta[property='og:image']",
-      roleOffset: candidates.length,
-    }),
+    ...enrichImageCandidates(
+      extractImageCandidatesFromOpenGraph(input.html ?? ""),
+      {
+        fallbackEvidence: "meta[property='og:image']",
+        roleOffset: candidates.length,
+      },
+    ),
   );
 
   const domCandidates = extractImageCandidatesFromDomSelectors(
@@ -383,7 +397,9 @@ function collectImages(input: ProductMediaDescriptionExtractionInput): ProductIm
   return dedupeImages(candidates);
 }
 
-function collectTexts(input: ProductMediaDescriptionExtractionInput): ProductTextCandidate[] {
+function collectTexts(
+  input: ProductMediaDescriptionExtractionInput,
+): ProductTextCandidate[] {
   const jsonLdPayloads = scriptJsonLdPayloads(input.html);
   const productRecords = getProductRecords(jsonLdPayloads);
   const evidence = descriptionEvidenceByText(productRecords);
@@ -489,17 +505,22 @@ export function buildProductMediaDescriptionCandidateOutput(
     imageUrls: imageCandidates.map((candidate) => candidate.url),
     imageCandidates,
     description:
-      descriptionCandidates.find((candidate) => candidate.fieldType === "description")
-        ?.text ?? descriptionCandidates[0]?.text,
+      descriptionCandidates.find(
+        (candidate) => candidate.fieldType === "description",
+      )?.text ?? descriptionCandidates[0]?.text,
     descriptionCandidates,
     claims,
     claimRiskFlags: Array.from(
-      new Set(descriptionCandidates.flatMap((candidate) => candidate.riskFlags ?? [])),
+      new Set(
+        descriptionCandidates.flatMap((candidate) => candidate.riskFlags ?? []),
+      ),
     ),
     parserVersion: PARSER_VERSION,
     confidenceHints: [],
   };
-  candidateWithoutScore.confidenceHints = createConfidenceHints(candidateWithoutScore);
+  candidateWithoutScore.confidenceHints = createConfidenceHints(
+    candidateWithoutScore,
+  );
 
   const candidate: ProductCandidate = {
     ...candidateWithoutScore,
