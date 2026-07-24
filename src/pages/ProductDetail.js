@@ -11,72 +11,18 @@ import {
   normalizeRecommendedProduct,
   mergeUniqueLinks,
   getSearchUrl,
-  normalizeSeverity,
-  getSeverityLabel,
   getHighestSeverity,
   formatPrice,
   formatDate,
 } from "../utils/productUtils";
+import { ProductHero } from "../components/ProductDetail/ProductHero";
+import { ProductSummary } from "../components/ProductDetail/ProductSummary";
+import { IngredientsPanel } from "../components/ProductDetail/IngredientsPanel";
+import { CautionsPanel } from "../components/ProductDetail/CautionsPanel";
+import { WhereToBuyPanel } from "../components/ProductDetail/WhereToBuyPanel";
+import { SourceEvidencePanel } from "../components/ProductDetail/SourceEvidencePanel";
+import { RecommendedProductsPanel } from "../components/ProductDetail/RecommendedProductsPanel";
 import "./ProductDetail.css";
-
-function ProductImage({ product, images }) {
-  const heroImage =
-    normalizeImage(product?.primaryImageUrl) || normalizeImage(images?.[0]);
-
-  if (heroImage) {
-    return (
-      <img
-        className="pd-hero-photo"
-        src={heroImage}
-        alt={product?.name || "Product"}
-      />
-    );
-  }
-
-  return <span className="pd-hero-emoji">{product?.emoji || "🌸"}</span>;
-}
-
-function IngredientRow({ ingredient }) {
-  const title =
-    ingredient.name || ingredient.canonicalName || "Unnamed ingredient";
-  const subtitle = [
-    ingredient.korean,
-    ingredient.canonicalName && ingredient.canonicalName !== title
-      ? ingredient.canonicalName
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const tags = [
-    ...asArray(ingredient.functionTags),
-    ...asArray(ingredient.benefitTags),
-  ];
-  const severity = normalizeSeverity(
-    ingredient.highestSeverity || ingredient.safety,
-  );
-
-  return (
-    <li className="pd-ingredient-row">
-      <div className="pd-ingredient-position">{ingredient.position || "–"}</div>
-      <div className="pd-ingredient-main">
-        <div className="pd-ingredient-name">{title}</div>
-        {subtitle && <div className="pd-ingredient-subtitle">{subtitle}</div>}
-        {tags.length > 0 && (
-          <div className="pd-tag-row">
-            {tags.slice(0, 4).map((tag) => (
-              <span key={tag} className="pd-soft-tag">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <span className={`pd-severity pd-severity-${severity}`}>
-        {getSeverityLabel(severity)}
-      </span>
-    </li>
-  );
-}
 
 export default function ProductDetail({ slug: explicitSlug }) {
   const navigate = useNavigate();
@@ -276,277 +222,39 @@ export default function ProductDetail({ slug: explicitSlug }) {
 
         {!loading && !error && product && (
           <>
-            <section className="pd-hero">
-              <div className="pd-hero-media">
-                <ProductImage product={product} images={imageUrls} />
-                {product.tag && (
-                  <span className="pd-product-tag">{product.tag}</span>
-                )}
-              </div>
+            <ProductHero
+              product={product}
+              brandName={brandName}
+              price={price}
+              updatedAt={updatedAt}
+              source={source}
+              imageUrls={imageUrls}
+            />
 
-              <div className="pd-hero-copy">
-                <div className="pd-brand">{brandName}</div>
-                <h1>{product.name}</h1>
-                {product.description && (
-                  <p className="pd-description">{product.description}</p>
-                )}
-
-                <div className="pd-meta-row">
-                  {product.category && <span>{product.category}</span>}
-                  {price && <span>{price}</span>}
-                  {updatedAt && <span>Updated {updatedAt}</span>}
-                </div>
-
-                <div className="pd-data-status">
-                  <span
-                    className={`pd-source-dot ${source || "static"}`}
-                  ></span>
-                  {source === "supabase" ? "Live Supabase" : "Detail fallback"}
-                </div>
-              </div>
-            </section>
-
-            {imageUrls.length > 1 && (
-              <div className="pd-image-strip" aria-label="Product images">
-                {imageUrls.slice(0, 4).map((url) => (
-                  <img key={url} src={url} alt="" />
-                ))}
-              </div>
-            )}
-
-            <section className="pd-summary-grid" aria-label="Safety summary">
-              <div className="pd-summary-card">
-                <span className="pd-summary-label">Ingredient flags</span>
-                <strong>{flagCount}</strong>
-                <span>
-                  {flagCount === 1 ? "note to review" : "notes to review"}
-                </span>
-              </div>
-              <div className="pd-summary-card">
-                <span className="pd-summary-label">Highest severity</span>
-                <strong
-                  className={`pd-summary-severity pd-severity-${highestSeverity}`}
-                >
-                  {getSeverityLabel(highestSeverity)}
-                </strong>
-                <span>
-                  {hasWarnings
-                    ? "Check the notes below"
-                    : "No caution flags yet"}
-                </span>
-              </div>
-              <div className="pd-summary-card">
-                <span className="pd-summary-label">Ingredients</span>
-                <strong>{ingredientItems.length}</strong>
-                <span>
-                  {ingredientItems.length === 1
-                    ? "ingredient listed"
-                    : "ingredients listed"}
-                </span>
-              </div>
-            </section>
+            <ProductSummary
+              flagCount={flagCount}
+              highestSeverity={highestSeverity}
+              hasWarnings={hasWarnings}
+              ingredientItems={ingredientItems}
+            />
 
             <div className="pd-content-grid">
-              <section className="pd-panel pd-ingredients-panel">
-                <div className="pd-section-heading">
-                  <h2>Ingredient List</h2>
-                  <span>{ingredientItems.length} total</span>
-                </div>
-
-                {ingredientItems.length > 0 ? (
-                  <ol className="pd-ingredient-list">
-                    {ingredientItems.map((ingredient, index) => (
-                      <IngredientRow
-                        key={ingredient.id || `${ingredient.name}-${index}`}
-                        ingredient={ingredient}
-                      />
-                    ))}
-                  </ol>
-                ) : (
-                  <div className="pd-empty-inline">
-                    No ingredient list has been added for this product yet.
-                  </div>
-                )}
-              </section>
+              <IngredientsPanel ingredientItems={ingredientItems} />
 
               <aside className="pd-side-stack">
-                <section className="pd-panel">
-                  <div className="pd-section-heading">
-                    <h2>Cautions & Allergy Notes</h2>
-                    <span>{flagItems.length}</span>
-                  </div>
-
-                  {flagItems.length > 0 ? (
-                    <div className="pd-flag-list">
-                      {flagItems.map((flag, index) => {
-                        const severity = normalizeSeverity(flag.severity);
-                        return (
-                          <article
-                            key={`${flag.ingredientName || flag.title}-${index}`}
-                            className="pd-flag-card"
-                          >
-                            <div className="pd-flag-top">
-                              <span
-                                className={`pd-severity pd-severity-${severity}`}
-                              >
-                                {getSeverityLabel(severity)}
-                              </span>
-                              {flag.ingredientName && (
-                                <span className="pd-flag-ingredient">
-                                  {flag.ingredientName}
-                                </span>
-                              )}
-                            </div>
-                            <h3>{flag.title || "Ingredient note"}</h3>
-                            {flag.description && <p>{flag.description}</p>}
-                            {flag.evidence && (
-                              <div className="pd-evidence">{flag.evidence}</div>
-                            )}
-                          </article>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="pd-clear-note">
-                      No caution or allergy flags are currently linked to this
-                      product. Always patch test if your skin is reactive.
-                    </div>
-                  )}
-                </section>
-
-                <section className="pd-panel">
-                  <div className="pd-section-heading">
-                    <h2>Where to Buy</h2>
-                    <span>
-                      {purchaseLinks.length || (fallbackSearchUrl ? 1 : 0)}
-                    </span>
-                  </div>
-
-                  {purchaseLinks.length > 0 && (
-                    <div className="pd-source-list">
-                      {purchaseLinks.map((link) => (
-                        <a
-                          key={link.url}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pd-source-link"
-                        >
-                          <span>{link.label}</span>
-                          <span aria-hidden="true">↗</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-
-                  {purchaseLinks.length === 0 && fallbackSearchUrl && (
-                    <div className="pd-fallback-action">
-                      <a
-                        href={fallbackSearchUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="pd-source-link"
-                      >
-                        <span>Search for this product</span>
-                        <span aria-hidden="true">↗</span>
-                      </a>
-                    </div>
-                  )}
-
-                  {purchaseLinks.length === 0 && !fallbackSearchUrl && (
-                    <div className="pd-empty-inline">
-                      No verified purchase link is available for this product
-                      yet.
-                    </div>
-                  )}
-                </section>
-
-                <section className="pd-panel">
-                  <div className="pd-section-heading">
-                    <h2>Source Evidence</h2>
-                    <span>{sourceLinks.length}</span>
-                  </div>
-
-                  {sourceLinks.length > 0 ? (
-                    <div className="pd-source-list">
-                      {sourceLinks.map((link) => (
-                        <article
-                          key={`${link.url}-${link.label}`}
-                          className="pd-source-item"
-                        >
-                          {link.url ? (
-                            <a
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="pd-source-link"
-                            >
-                              <span>{link.label}</span>
-                              <span aria-hidden="true">↗</span>
-                            </a>
-                          ) : (
-                            <div className="pd-source-link pd-source-link-static">
-                              <span>{link.label}</span>
-                            </div>
-                          )}
-                          {(link.evidence || link.publishedAt) && (
-                            <div className="pd-source-meta">
-                              {link.evidence && <p>{link.evidence}</p>}
-                              {link.publishedAt && (
-                                <span>{formatDate(link.publishedAt)}</span>
-                              )}
-                            </div>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="pd-empty-inline">
-                      No source evidence is available yet.
-                    </div>
-                  )}
-
-                  {sourceLinks.length > 0 && !hasAnySourceEvidence && (
-                    <div className="pd-evidence-note">
-                      Links are available, but evidence snippets are not yet
-                      attached.
-                    </div>
-                  )}
-                </section>
-
-                <section className="pd-panel">
-                  <div className="pd-section-heading">
-                    <h2>Recommended Products</h2>
-                    <span>{recommendedItems.length}</span>
-                  </div>
-
-                  {recommendedItems.length > 0 ? (
-                    <div className="pd-reco-list">
-                      {recommendedItems.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className="pd-reco-item"
-                          onClick={() =>
-                            item.slug && navigate(`/products/${item.slug}`)
-                          }
-                        >
-                          <strong>{item.name}</strong>
-                          <span>{item.brand}</span>
-                          <span>
-                            {[item.category, item.skin]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="pd-empty-inline">
-                      No related products are available right now.
-                    </div>
-                  )}
-                </section>
+                <CautionsPanel flagItems={flagItems} />
+                <WhereToBuyPanel
+                  purchaseLinks={purchaseLinks}
+                  fallbackSearchUrl={fallbackSearchUrl}
+                />
+                <SourceEvidencePanel
+                  sourceLinks={sourceLinks}
+                  hasAnySourceEvidence={hasAnySourceEvidence}
+                />
+                <RecommendedProductsPanel
+                  recommendedItems={recommendedItems}
+                  navigate={navigate}
+                />
               </aside>
             </div>
           </>
