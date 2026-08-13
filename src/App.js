@@ -1,4 +1,10 @@
-import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Products from "./pages/Products";
@@ -7,6 +13,7 @@ import Ingredients from "./pages/Ingredients";
 import ShoppingMap from "./pages/ShoppingMap";
 import SkinQuiz from "./pages/SkinQuiz";
 import AdminReview from "./pages/AdminReview";
+import { LikesProvider } from "./hooks/useLikes";
 import "./App.css";
 
 const PAGE_ROUTES = {
@@ -57,8 +64,10 @@ function getActivePage(pathname) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppShell />
-    </BrowserRouter>
+    <LikesProvider>
+      <BrowserRouter>
+        <AppShell />
+      </BrowserRouter>
+    </LikesProvider>
   );
 }
