@@ -8,8 +8,6 @@ export function getCorsHeaders(req: Request): Headers {
     allowOrigin = "*";
   } else if (allowedOrigins.includes(origin)) {
     allowOrigin = origin;
-  } else if (allowedOrigins.length > 0) {
-    allowOrigin = allowedOrigins[0];
   }
 
   const headers = new Headers({
