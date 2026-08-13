@@ -87,7 +87,12 @@ serve(async (req: Request) => {
 
   const ingredientText = stringField(body, "ingredientText");
   if (!ingredientText) {
-    return errorResponse(req, 400, "validation_error", "ingredientText is required");
+    return errorResponse(
+      req,
+      400,
+      "validation_error",
+      "ingredientText is required",
+    );
   }
 
   if (ingredientText.length > MAX_INGREDIENT_TEXT_LENGTH) {
@@ -127,7 +132,8 @@ serve(async (req: Request) => {
     );
   }
 
-  const { data: userData, error: userError } = await clientResult.client.auth.getUser(token);
+  const { data: userData, error: userError } =
+    await clientResult.client.auth.getUser(token);
   if (userError || !userData.user) {
     return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
@@ -289,7 +295,9 @@ function matchToken(
 }
 
 // In-memory cache for safety rules to reduce database load
-const ACTIVE_RULES_CACHE = new Map<string, RuleRow[]>();
+let cachedRulesMap: Map<string, RuleRow[]> | null = null;
+let lastRulesCacheUpdate: number = 0;
+const RULES_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 async function loadActiveRules(
   req: Request,
@@ -298,19 +306,8 @@ async function loadActiveRules(
 ): Promise<RuleRow[] | Response> {
   if (ingredientIds.length === 0) return [];
 
-  const uniqueIds = [...new Set(ingredientIds)];
-  const uncachedIds: string[] = [];
-  const results: RuleRow[] = [];
-
-  for (const id of uniqueIds) {
-    if (ACTIVE_RULES_CACHE.has(id)) {
-      results.push(...(ACTIVE_RULES_CACHE.get(id) || []));
-    } else {
-      uncachedIds.push(id);
-    }
-  }
-
-  if (uncachedIds.length > 0) {
+  const now = Date.now();
+  if (!cachedRulesMap || now - lastRulesCacheUpdate >= RULES_CACHE_TTL_MS) {
     const { data, error } = await client
       .from("ingredient_safety_rules")
       .select(
@@ -325,8 +322,8 @@ async function loadActiveRules(
         version
       `,
       )
-      .in("ingredient_id", uncachedIds)
-      .eq("active", true);
+      .eq("active", true)
+      .limit(10000); // Fetch all active rules for the global cache
 
     if (error) {
       return errorResponse(
@@ -340,19 +337,23 @@ async function loadActiveRules(
 
     const fetchedRules = (data ?? []) as unknown as RuleRow[];
 
-    // Group rules by ingredient_id
-    const rulesByIngredientId = new Map<string, RuleRow[]>();
-    for (const id of uncachedIds) {
-      rulesByIngredientId.set(id, []);
-    }
+    const newRulesMap = new Map<string, RuleRow[]>();
     for (const rule of fetchedRules) {
-      rulesByIngredientId.get(rule.ingredient_id)?.push(rule);
+      if (!newRulesMap.has(rule.ingredient_id)) {
+        newRulesMap.set(rule.ingredient_id, []);
+      }
+      newRulesMap.get(rule.ingredient_id)!.push(rule);
     }
 
-    // Populate cache and add to results
-    for (const [id, rules] of rulesByIngredientId.entries()) {
-      ACTIVE_RULES_CACHE.set(id, rules);
-      results.push(...rules);
+    cachedRulesMap = newRulesMap;
+    lastRulesCacheUpdate = now;
+  }
+
+  const results: RuleRow[] = [];
+  const uniqueIds = [...new Set(ingredientIds)];
+  for (const id of uniqueIds) {
+    if (cachedRulesMap.has(id)) {
+      results.push(...cachedRulesMap.get(id)!);
     }
   }
 
