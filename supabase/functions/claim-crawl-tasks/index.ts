@@ -1,3 +1,4 @@
+import { validateWorkerToken } from "../_shared/auth.ts";
 import {
   errorResponse,
   integerField,
@@ -42,11 +43,7 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  const authorization = req.headers.get("authorization") ?? "";
-  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!token || token !== serviceRoleKey) {
+  if (!validateWorkerToken(req)) {
     return errorResponse(
       req,
       401,
