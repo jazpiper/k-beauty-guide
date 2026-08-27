@@ -16,7 +16,7 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 
-const { normalizeSourceUrl } = require("../core/dedupe.ts");
+const { normalizeSourceUrl, dedupeCandidateImageUrls } = require("../core/dedupe.ts");
 
 // The function is normalizeComparableUrl which is exported via normalizeSourceUrl
 // Test the catch block fallback logic: return trimmed.replace(/#.*$/, "").replace(/\/$/, "");
@@ -58,6 +58,49 @@ assert.equal(
   normalizeSourceUrl("https://EXAMPLE.com/path/?utm_source=test#hash"),
   "https://example.com/path",
   "should normalize valid URLs correctly"
+);
+
+// Tests for dedupeCandidateImageUrls
+// 7. Handles empty, null, undefined, and whitespace entries
+assert.deepEqual(
+  dedupeCandidateImageUrls([
+    undefined,
+    "",
+    "   ",
+    null,
+    "https://example.com/image.jpg ",
+  ]),
+  ["https://example.com/image.jpg"],
+  "should filter out invalid/empty/whitespace entries and trim retained URLs"
+);
+
+// 8. Dedupes URLs with tracking parameters and case/slash differences
+assert.deepEqual(
+  dedupeCandidateImageUrls([
+    "https://EXAMPLE.com/img1.jpg?utm_source=campaign",
+    "https://example.com/img1.jpg?fbclid=123",
+    "https://example.com/img1.jpg/",
+    "https://example.com/img2.jpg",
+  ]),
+  [
+    "https://EXAMPLE.com/img1.jpg?utm_source=campaign",
+    "https://example.com/img2.jpg",
+  ],
+  "should dedupe URLs matching same normalized URL and keep first trimmed original"
+);
+
+// 9. Dedupes invalid URL formats using fallback normalization logic
+assert.deepEqual(
+  dedupeCandidateImageUrls([
+    "invalid-image-url#hash1/",
+    "invalid-image-url#hash2",
+    "another-invalid-img",
+  ]),
+  [
+    "invalid-image-url#hash1/",
+    "another-invalid-img",
+  ],
+  "should dedupe invalid URLs normalized via fallback logic"
 );
 
 console.log("dedupe error path tests passed");
