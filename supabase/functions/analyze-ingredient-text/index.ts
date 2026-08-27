@@ -62,10 +62,6 @@ type ParsedIngredient = {
   confidence: number;
 };
 
-let cachedAliasMap: Map<string, AliasRow[]> | null = null;
-let lastCacheUpdate: number = 0;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-
 serve(async (req: Request) => {
   const methodError = requirePost(req);
   if (methodError) return methodError;
@@ -132,7 +128,12 @@ serve(async (req: Request) => {
     return errorResponse(req, 401, "unauthorized", "Invalid user token");
   }
 
-  const aliasMap = await loadPublicAliasMap(req, clientResult.client);
+  const normalizedNames = [...new Set(tokens.map((t) => t.normalizedName))];
+  const aliasMap = await loadPublicAliasMap(
+    req,
+    clientResult.client,
+    normalizedNames,
+  );
   if (aliasMap instanceof Response) return aliasMap;
 
   const parsedIngredients = tokens.map((token) => matchToken(token, aliasMap));
@@ -191,10 +192,10 @@ function normalizeIngredientName(value: string): string {
 async function loadPublicAliasMap(
   req: Request,
   client: SupabaseClient,
+  normalizedNames: string[],
 ): Promise<Map<string, AliasRow[]> | Response> {
-  const now = Date.now();
-  if (cachedAliasMap && now - lastCacheUpdate < CACHE_TTL_MS) {
-    return cachedAliasMap;
+  if (normalizedNames.length === 0) {
+    return new Map<string, AliasRow[]>();
   }
 
   const { data, error } = await client
@@ -213,8 +214,8 @@ async function loadPublicAliasMap(
       )
     `,
     )
-    .in("ingredients.source_status", ["verified", "imported"])
-    .limit(1000000); // Retrieve all possible rows since this is a global cache now
+    .in("normalized_alias", normalizedNames)
+    .in("ingredients.source_status", ["verified", "imported"]);
 
   if (error) {
     return errorResponse(
@@ -241,8 +242,6 @@ async function loadPublicAliasMap(
     newAliasMap.get(aliasKey)!.push(row);
   }
 
-  cachedAliasMap = newAliasMap;
-  lastCacheUpdate = now;
   return newAliasMap;
 }
 
