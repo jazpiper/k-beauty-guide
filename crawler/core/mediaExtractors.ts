@@ -46,7 +46,8 @@ function collectJsonLdImages(value: unknown, output: string[]): void {
   }
 
   for (const nested of Object.values(record)) {
-    if (nested && typeof nested === "object") collectJsonLdImages(nested, output);
+    if (nested && typeof nested === "object")
+      collectJsonLdImages(nested, output);
   }
 }
 
@@ -82,18 +83,33 @@ function collectImageSrcFromHtml(html: string): string[] {
   return urls;
 }
 
+const TAG_REGEX_CACHE = new Map<string, RegExp>();
+
+function getTagRegex(tag: string): RegExp {
+  let regex = TAG_REGEX_CACHE.get(tag);
+  if (!regex) {
+    regex = new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi");
+    TAG_REGEX_CACHE.set(tag, regex);
+  }
+  return regex;
+}
+
 function extractElementsByTag(html: string, tag: string): HtmlElementMatch[] {
   const matches: HtmlElementMatch[] = [];
-  const pairRegex = new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi");
+  const pairRegex = getTagRegex(tag);
   for (const match of html.matchAll(pairRegex)) {
     matches.push({ attrs: match[1] ?? "", inner: match[2] ?? "" });
   }
   return matches;
 }
 
-const CONTAINER_PATTERNS_MEDIA = ["div", "section", "article", "main", "ul"].map(
-  (tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi")
-);
+const CONTAINER_PATTERNS_MEDIA = [
+  "div",
+  "section",
+  "article",
+  "main",
+  "ul",
+].map((tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi"));
 
 function extractContainerById(html: string, id: string): string[] {
   const containers: string[] = [];
@@ -119,13 +135,18 @@ function extractSectionByAriaLabel(html: string, ariaLabel: string): string[] {
   return sections;
 }
 
-function extractImageUrlsBySimpleSelector(html: string, selector: string): string[] {
+function extractImageUrlsBySimpleSelector(
+  html: string,
+  selector: string,
+): string[] {
   const normalized = selector.trim();
   const lower = normalized.toLowerCase();
 
   if (!normalized) return [];
   if (lower.includes("og:image")) {
-    return extractImageCandidatesFromOpenGraph(html).map((candidate) => candidate.url);
+    return extractImageCandidatesFromOpenGraph(html).map(
+      (candidate) => candidate.url,
+    );
   }
 
   if (lower === "img") {
