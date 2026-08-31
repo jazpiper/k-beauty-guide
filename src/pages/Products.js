@@ -167,8 +167,15 @@ export default function Products() {
                   )}
                   <span className="product-tag">{p.tag}</span>
                   <button
+                    type="button"
                     onClick={() => toggleLike(p.id || p.slug)}
                     className="like-btn"
+                    aria-label={
+                      liked[p.id || p.slug]
+                        ? `Remove ${p.name} from favorites`
+                        : `Add ${p.name} to favorites`
+                    }
+                    aria-pressed={Boolean(liked[p.id || p.slug])}
                   >
                     {liked[p.id || p.slug] ? "❤️" : "🤍"}
                   </button>

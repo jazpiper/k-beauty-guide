@@ -169,7 +169,17 @@ export default function Home({ setActivePage }) {
               <div className="product-img" style={{ background: p.color }}>
                 <span className="product-emoji">{p.emoji}</span>
                 <span className="product-tag">{p.tag}</span>
-                <button onClick={() => toggleLike(i)} className="like-btn">
+                <button
+                  type="button"
+                  onClick={() => toggleLike(i)}
+                  className="like-btn"
+                  aria-label={
+                    liked[i]
+                      ? `Remove ${p.name} from favorites`
+                      : `Add ${p.name} to favorites`
+                  }
+                  aria-pressed={Boolean(liked[i])}
+                >
                   {liked[i] ? "❤️" : "🤍"}
                 </button>
               </div>
