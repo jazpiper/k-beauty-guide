@@ -2,7 +2,7 @@ import { SEVERITY_RANK } from "../constants/severity";
 
 export const severityRank = SEVERITY_RANK;
 
-export function isSafeHttpUrl(value) {
+function isSafeHttpUrl(value) {
   if (!value || typeof value !== "string") return false;
   try {
     const parsed = new URL(value);
@@ -29,10 +29,16 @@ export function normalizeImage(image) {
 
 export function normalizeSourceLink(source) {
   if (!source) return null;
-  const rawUrl = typeof source === "string" ? source : source.url || source.href || source.sourceUrl;
+  const rawUrl =
+    typeof source === "string"
+      ? source
+      : source.url || source.href || source.sourceUrl;
   const url = sanitizeHttpUrl(rawUrl);
 
-  let label = typeof source === "string" ? "" : source.label || source.title || source.name || "";
+  let label =
+    typeof source === "string"
+      ? ""
+      : source.label || source.title || source.name || "";
   if (url) {
     try {
       const parsed = new URL(url);
@@ -45,8 +51,12 @@ export function normalizeSourceLink(source) {
   return {
     url: url || "",
     label: label || "Source",
-    evidence: typeof source === "object" ? source.evidence || source.description || "" : "",
-    publishedAt: typeof source === "object" ? source.publishedAt || source.date : "",
+    evidence:
+      typeof source === "object"
+        ? source.evidence || source.description || ""
+        : "",
+    publishedAt:
+      typeof source === "object" ? source.publishedAt || source.date : "",
   };
 }
 
@@ -86,7 +96,9 @@ export function mergeUniqueLinks(links) {
 
 export function getSearchUrl(product) {
   if (!product?.name && !product?.brand) return "";
-  return sanitizeHttpUrl(`https://www.google.com/search?q=${encodeURIComponent(`${product?.brand || ""} ${product?.name || ""}`.trim())}`);
+  return sanitizeHttpUrl(
+    `https://www.google.com/search?q=${encodeURIComponent(`${product?.brand || ""} ${product?.name || ""}`.trim())}`,
+  );
 }
 
 export function normalizeSeverity(value) {
@@ -104,13 +116,20 @@ export function getSeverityLabel(value) {
 }
 
 export function getHighestSeverity(product, flags, ingredients) {
-  if (product?.highestSeverity) return normalizeSeverity(product.highestSeverity);
+  if (product?.highestSeverity)
+    return normalizeSeverity(product.highestSeverity);
   const severities = [
     ...asArray(flags).map((flag) => flag?.severity),
-    ...asArray(ingredients).map((ingredient) => ingredient?.highestSeverity || ingredient?.safety),
+    ...asArray(ingredients).map(
+      (ingredient) => ingredient?.highestSeverity || ingredient?.safety,
+    ),
   ].map(normalizeSeverity);
 
-  return severities.sort((a, b) => (severityRank[b] ?? 0) - (severityRank[a] ?? 0))[0] || "none";
+  return (
+    severities.sort(
+      (a, b) => (severityRank[b] ?? 0) - (severityRank[a] ?? 0),
+    )[0] || "none"
+  );
 }
 
 export function formatPrice(product) {
@@ -118,12 +137,17 @@ export function formatPrice(product) {
   if (product.price && typeof product.price === "string") return product.price;
   if (product.priceKrw != null) {
     const priceKrw = Number(String(product.priceKrw).replace(/[^\d.]/g, ""));
-    return Number.isFinite(priceKrw) ? `₩${priceKrw.toLocaleString("ko-KR")}` : String(product.priceKrw);
+    return Number.isFinite(priceKrw)
+      ? `₩${priceKrw.toLocaleString("ko-KR")}`
+      : String(product.priceKrw);
   }
   if (product.price && product.currency) {
     const amount = Number(product.price);
     return Number.isFinite(amount)
-      ? new Intl.NumberFormat("en-US", { style: "currency", currency: product.currency }).format(amount)
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: product.currency,
+        }).format(amount)
       : `${product.currency} ${product.price}`;
   }
   if (product.price) return String(product.price);
@@ -134,5 +158,9 @@ export function formatDate(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
