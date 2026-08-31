@@ -5,14 +5,29 @@ type UnknownRecord = Record<string, unknown>;
 const DEFAULT_DESCRIPTION_MAX_LENGTH = 2000;
 
 const CLAIM_RISK_PATTERNS: Array<{ code: string; pattern: RegExp }> = [
-  { code: "medical_treatment", pattern: /\b(treat|treatment|cures?|heals?)\b/i },
-  { code: "disease_reference", pattern: /\b(acne|eczema|psoriasis|dermatitis)\b/i },
-  { code: "regulatory_drug", pattern: /\b(drug|prescription|fda\s*approved)\b/i },
+  {
+    code: "medical_treatment",
+    pattern: /\b(treat|treatment|cures?|heals?)\b/i,
+  },
+  {
+    code: "disease_reference",
+    pattern: /\b(acne|eczema|psoriasis|dermatitis)\b/i,
+  },
+  {
+    code: "regulatory_drug",
+    pattern: /\b(drug|prescription|fda\s*approved)\b/i,
+  },
   { code: "spf_pa_claim", pattern: /\bspf\s*\d+|pa\+{1,4}\b/i },
-  { code: "pregnancy_safe_claim", pattern: /\b(pregnancy[-\s]*safe|safe[-\s]*for[-\s]*pregnancy)\b/i },
+  {
+    code: "pregnancy_safe_claim",
+    pattern: /\b(pregnancy[-\s]*safe|safe[-\s]*for[-\s]*pregnancy)\b/i,
+  },
   { code: "hypoallergenic_claim", pattern: /\bhypoallergenic\b/i },
   { code: "non_comedogenic_claim", pattern: /\bnon[-\s]*comedogenic\b/i },
-  { code: "dermatologist_tested_claim", pattern: /\bdermatologist[-\s]*tested\b/i },
+  {
+    code: "dermatologist_tested_claim",
+    pattern: /\bdermatologist[-\s]*tested\b/i,
+  },
   { code: "korean_treatment", pattern: /(치료|완치|의약품|아토피)/i },
 ];
 
@@ -79,7 +94,8 @@ function collectJsonLdDescriptions(value: unknown, output: string[]): void {
   }
 
   for (const nested of Object.values(record)) {
-    if (nested && typeof nested === "object") collectJsonLdDescriptions(nested, output);
+    if (nested && typeof nested === "object")
+      collectJsonLdDescriptions(nested, output);
   }
 }
 
@@ -99,12 +115,6 @@ function toTextCandidates(
   return output;
 }
 
-function getAttrValue(attrs: string, attrName: string): string | null {
-  const pattern = new RegExp(`\\b${attrName}\\s*=\\s*["']([^"']+)["']`, "i");
-  const match = attrs.match(pattern);
-  return match?.[1] ?? null;
-}
-
 function extractTagInnerHtml(html: string, tag: string): string[] {
   const values: string[] = [];
   const tagRegex = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
@@ -114,22 +124,14 @@ function extractTagInnerHtml(html: string, tag: string): string[] {
   return values;
 }
 
-const CONTAINER_PATTERNS_TEXT = ["div", "section", "article", "main", "ul", "ol"].map(
-  (tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi")
-);
-
-function extractContainerById(html: string, id: string): string[] {
-  const containers: string[] = [];
-  for (const pattern of CONTAINER_PATTERNS_TEXT) {
-    for (const match of html.matchAll(pattern)) {
-      const attrs = match[1] ?? "";
-      if (!attrs.includes("id")) continue;
-      const elementId = getAttrValue(attrs, "id");
-      if (elementId === id) containers.push(match[2] ?? "");
-    }
-  }
-  return containers;
-}
+const CONTAINER_PATTERNS_TEXT = [
+  "div",
+  "section",
+  "article",
+  "main",
+  "ul",
+  "ol",
+].map((tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi"));
 
 function extractTextBySimpleSelector(html: string, selector: string): string[] {
   const normalized = selector.trim();
@@ -137,7 +139,9 @@ function extractTextBySimpleSelector(html: string, selector: string): string[] {
 
   if (!normalized) return [];
   if (lower.includes("og:description")) {
-    return extractDescriptionCandidatesFromOpenGraph(html).map((candidate) => candidate.text);
+    return extractDescriptionCandidatesFromOpenGraph(html).map(
+      (candidate) => candidate.text,
+    );
   }
 
   const idTagMatch = normalized.match(
@@ -149,7 +153,11 @@ function extractTextBySimpleSelector(html: string, selector: string): string[] {
     const indexValue =
       idTagMatch[3] === undefined ? null : Number.parseInt(idTagMatch[3], 10);
     const values: string[] = [];
-    for (const container of extractContainerById(html, id)) {
+    for (const container of extractContainerById(
+      html,
+      id,
+      CONTAINER_PATTERNS_TEXT,
+    )) {
       values.push(...extractTagInnerHtml(container, childTag));
     }
     if (indexValue === null || Number.isNaN(indexValue)) return values;
@@ -228,6 +236,8 @@ export function extractDescriptionCandidatesFromDomSelectors(
 
   return deduped;
 }
+
+import { extractContainerById } from "./htmlUtils";
 
 export function detectClaimRiskFlags(value: unknown): string[] {
   const text = cleanupDescriptionText(value, 10000);
