@@ -1,3 +1,4 @@
+import { normalizeSourceLink } from './productUtils';
 import { isSafeHttpUrl } from './productUtils';
 import { getHighestSeverity, normalizeSeverity, getSeverityLabel } from './productUtils';
 import { SEVERITY_RANK } from '../constants/severity';
@@ -94,5 +95,31 @@ describe('isSafeHttpUrl', () => {
   it('returns false for malformed URLs', () => {
     expect(isSafeHttpUrl('not a url')).toBe(false);
     expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
+  });
+});
+
+describe('normalizeSourceLink', () => {
+  it('returns null for falsy input', () => {
+    expect(normalizeSourceLink(null)).toBeNull();
+    expect(normalizeSourceLink('')).toBeNull();
+  });
+
+  it('normalizes string url input', () => {
+    const result = normalizeSourceLink('https://www.example.com/item');
+    expect(result.url).toBe('https://www.example.com/item');
+    expect(result.label).toBe('example.com');
+  });
+
+  it('normalizes object source input', () => {
+    const result = normalizeSourceLink({
+      url: 'https://example.com/source',
+      label: 'Custom Label',
+      evidence: 'Test evidence',
+      publishedAt: '2026-01-01',
+    });
+    expect(result.url).toBe('https://example.com/source');
+    expect(result.label).toBe('Custom Label');
+    expect(result.evidence).toBe('Test evidence');
+    expect(result.publishedAt).toBe('2026-01-01');
   });
 });
