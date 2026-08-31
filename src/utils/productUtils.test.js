@@ -1,3 +1,4 @@
+import { formatPrice } from './productUtils';
 import { isSafeHttpUrl } from './productUtils';
 import { getHighestSeverity, normalizeSeverity, getSeverityLabel } from './productUtils';
 import { SEVERITY_RANK } from '../constants/severity';
@@ -94,5 +95,24 @@ describe('isSafeHttpUrl', () => {
   it('returns false for malformed URLs', () => {
     expect(isSafeHttpUrl('not a url')).toBe(false);
     expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
+  });
+});
+
+describe('formatPrice', () => {
+  it('returns empty string for null/undefined', () => {
+    expect(formatPrice(null)).toBe('');
+    expect(formatPrice(undefined)).toBe('');
+  });
+
+  it('returns string price unchanged', () => {
+    expect(formatPrice({ price: '$20.00' })).toBe('$20.00');
+  });
+
+  it('formats priceKrw with KRW symbol', () => {
+    expect(formatPrice({ priceKrw: 15000 })).toBe('₩15,000');
+  });
+
+  it('formats price with currency', () => {
+    expect(formatPrice({ price: 25, currency: 'USD' })).toBe('$25.00');
   });
 });
