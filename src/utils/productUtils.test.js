@@ -1,3 +1,4 @@
+import { isSafeHttpUrl } from './productUtils';
 import { getHighestSeverity, normalizeSeverity, getSeverityLabel } from './productUtils';
 import { SEVERITY_RANK } from '../constants/severity';
 
@@ -64,5 +65,34 @@ describe('productUtils', () => {
       const ingredients = [undefined, null, { highestSeverity: 'low' }];
       expect(getHighestSeverity({}, flags, ingredients)).toBe('medium');
     });
+  });
+});
+
+describe('isSafeHttpUrl', () => {
+  it('returns true for valid HTTP and HTTPS URLs', () => {
+    expect(isSafeHttpUrl('http://example.com')).toBe(true);
+    expect(isSafeHttpUrl('https://example.com')).toBe(true);
+    expect(isSafeHttpUrl('https://example.com/path?query=1')).toBe(true);
+  });
+
+  it('returns false for invalid protocols', () => {
+    expect(isSafeHttpUrl('javascript:alert(1)')).toBe(false);
+    expect(isSafeHttpUrl('data:text/html,<h1>Hello</h1>')).toBe(false);
+    expect(isSafeHttpUrl('ftp://example.com')).toBe(false);
+    expect(isSafeHttpUrl('file:///etc/passwd')).toBe(false);
+  });
+
+  it('returns false for invalid types and values', () => {
+    expect(isSafeHttpUrl(null)).toBe(false);
+    expect(isSafeHttpUrl(undefined)).toBe(false);
+    expect(isSafeHttpUrl('')).toBe(false);
+    expect(isSafeHttpUrl(123)).toBe(false);
+    expect(isSafeHttpUrl([])).toBe(false);
+    expect(isSafeHttpUrl({})).toBe(false);
+  });
+
+  it('returns false for malformed URLs', () => {
+    expect(isSafeHttpUrl('not a url')).toBe(false);
+    expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
   });
 });
