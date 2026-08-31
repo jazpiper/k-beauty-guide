@@ -1,3 +1,4 @@
+import { asArray } from './productUtils';
 import { isSafeHttpUrl } from './productUtils';
 import { getHighestSeverity, normalizeSeverity, getSeverityLabel } from './productUtils';
 import { SEVERITY_RANK } from '../constants/severity';
@@ -94,5 +95,21 @@ describe('isSafeHttpUrl', () => {
   it('returns false for malformed URLs', () => {
     expect(isSafeHttpUrl('not a url')).toBe(false);
     expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
+  });
+});
+
+describe('asArray', () => {
+  it('returns empty array for falsy values', () => {
+    expect(asArray(null)).toEqual([]);
+    expect(asArray(undefined)).toEqual([]);
+    expect(asArray('')).toEqual([]);
+  });
+
+  it('filters falsy items from array', () => {
+    expect(asArray(['a', null, 'b', undefined, ''])).toEqual(['a', 'b']);
+  });
+
+  it('wraps non-array value in array', () => {
+    expect(asArray('item')).toEqual(['item']);
   });
 });
