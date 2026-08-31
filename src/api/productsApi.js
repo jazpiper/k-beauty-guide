@@ -1,9 +1,7 @@
 import { fallbackProducts } from "../data/products";
-import { fallbackIngredients } from "../data/ingredients";
+import { fallbackIngredientsMap } from "../data/ingredients";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 import { severityRank } from "../utils/productUtils";
-
-const fallbackIngredientsMap = new Map(fallbackIngredients.map((ing) => [ing.id, ing]));
 
 const PRODUCT_COLORS = [
   "#FFE4EC",
@@ -331,9 +329,7 @@ function selectFallbackIngredients(product) {
     "fragrance",
   ];
 
-  return ids
-    .map((id) => fallbackIngredientsMap.get(id))
-    .filter(Boolean);
+  return ids.map((id) => fallbackIngredientsMap.get(id)).filter(Boolean);
 }
 
 function selectFallbackRecommendations(product, flags) {
