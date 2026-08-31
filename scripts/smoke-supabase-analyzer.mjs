@@ -1,5 +1,17 @@
-const endpoint = process.env.SUPABASE_FUNCTIONS_URL ||
-  "http://127.0.0.1:54321/functions/v1/analyze-ingredient-text";
+const rawEndpoint =
+  process.env.SUPABASE_FUNCTIONS_URL ||
+  process.env.SUPABASE_FUNCTIONS_ROOT ||
+  "http://127.0.0.1:54321/functions/v1";
+
+function resolveEndpoint(urlStr) {
+  const trimmed = urlStr.replace(/\/$/, "");
+  if (trimmed.endsWith("/analyze-ingredient-text")) {
+    return trimmed;
+  }
+  return `${trimmed}/analyze-ingredient-text`;
+}
+
+const endpoint = resolveEndpoint(rawEndpoint);
 const supabaseJwt = process.env.SUPABASE_ANON_KEY || process.env.ANON_KEY;
 const headers = { "Content-Type": "application/json" };
 
@@ -25,11 +37,17 @@ if (!response.ok || !body.ok) {
 const parsedIngredients = body.data?.parsedIngredients ?? [];
 const flags = body.data?.flags ?? [];
 
-const fragrance = parsedIngredients.find((ingredient) => ingredient.rawName === "Fragrance");
-const hyaluronic = parsedIngredients.find((ingredient) => ingredient.rawName === "Hyaluronic Acid");
+const fragrance = parsedIngredients.find(
+  (ingredient) => ingredient.rawName === "Fragrance",
+);
+const hyaluronic = parsedIngredients.find(
+  (ingredient) => ingredient.rawName === "Hyaluronic Acid",
+);
 
 if (body.data?.unmatchedCount !== 1) {
-  console.error(`Expected unmatchedCount=1, received ${body.data?.unmatchedCount}`);
+  console.error(
+    `Expected unmatchedCount=1, received ${body.data?.unmatchedCount}`,
+  );
   process.exit(1);
 }
 
@@ -38,20 +56,31 @@ if (fragrance?.displayName !== "Fragrance" || !fragrance?.ingredientId) {
   process.exit(1);
 }
 
-if (hyaluronic?.displayName !== "Sodium Hyaluronate" || !hyaluronic?.ingredientId) {
+if (
+  hyaluronic?.displayName !== "Sodium Hyaluronate" ||
+  !hyaluronic?.ingredientId
+) {
   console.error("Expected Hyaluronic Acid to match Sodium Hyaluronate");
   process.exit(1);
 }
 
 if (flags.length !== 1 || flags[0]?.title !== "Fragrance ingredient detected") {
   const receivedTitles = flags.map((flag) => flag.title).join(", ") || "(none)";
-  console.error(`Expected exactly one flag titled "Fragrance ingredient detected"; received ${flags.length}: ${receivedTitles}`);
+  console.error(
+    `Expected exactly one flag titled "Fragrance ingredient detected"; received ${flags.length}: ${receivedTitles}`,
+  );
   process.exit(1);
 }
 
-console.log(JSON.stringify({
-  ok: true,
-  parsedCount: parsedIngredients.length,
-  unmatchedCount: body.data.unmatchedCount,
-  flagCount: flags.length,
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      ok: true,
+      parsedCount: parsedIngredients.length,
+      unmatchedCount: body.data.unmatchedCount,
+      flagCount: flags.length,
+    },
+    null,
+    2,
+  ),
+);
