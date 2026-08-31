@@ -96,3 +96,9 @@ describe('isSafeHttpUrl', () => {
     expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
   });
 });
+
+describe('isSafeHttpUrl catch block', () => {
+  it('handles URL constructor throwing exceptions', () => {
+    expect(isSafeHttpUrl('http://[::1')).toBe(false);
+  });
+});
