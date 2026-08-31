@@ -16,7 +16,7 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 
-const { detectClaimRiskFlags } = require("../core/textExtractors.ts");
+const { detectClaimRiskFlags, extractDescriptionCandidatesFromDomSelectors } = require("../core/textExtractors.ts");
 
 function testDetectClaimRiskFlags() {
   console.log("Testing detectClaimRiskFlags...");
@@ -42,3 +42,29 @@ function testDetectClaimRiskFlags() {
 }
 
 testDetectClaimRiskFlags();
+
+
+function testExtractDescriptionCandidatesFromDomSelectors() {
+  console.log("Testing extractDescriptionCandidatesFromDomSelectors...");
+  const html = "<div id=\"content\"><p>Hello world</p><p>Second paragraph</p><span>Span text</span></div>";
+  const results = extractDescriptionCandidatesFromDomSelectors(html, ["p", "span"]);
+  assert.equal(results.length, 3);
+  assert.equal(results[0].text, "Hello world");
+  assert.equal(results[1].text, "Second paragraph");
+  assert.equal(results[2].text, "Span text");
+
+  // Performance benchmark
+  const tags = ["p", "span", "div", "a", "p", "span", "h1", "h2", "p", "div"];
+  const start = performance.now();
+  const iterations = 50000;
+  for (let i = 0; i < iterations; i++) {
+    for (const tag of tags) {
+      extractDescriptionCandidatesFromDomSelectors(html, [tag]);
+    }
+  }
+  const elapsed = performance.now() - start;
+  console.log(`Post-optimization elapsed time for ${iterations * tags.length} extractions: ${elapsed.toFixed(2)} ms`);
+  console.log("All extractDescriptionCandidatesFromDomSelectors tests passed!");
+}
+
+testExtractDescriptionCandidatesFromDomSelectors();

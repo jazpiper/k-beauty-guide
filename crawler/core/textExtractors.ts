@@ -105,9 +105,22 @@ function getAttrValue(attrs: string, attrName: string): string | null {
   return match?.[1] ?? null;
 }
 
+const TAG_REGEX_CACHE = new Map<string, RegExp>();
+
+function getTagRegex(tag: string): RegExp {
+  const lowerTag = tag.toLowerCase();
+  let regex = TAG_REGEX_CACHE.get(lowerTag);
+  if (!regex) {
+    regex = new RegExp(`<${lowerTag}\\b[^>]*>([\\s\\S]*?)<\\/${lowerTag}>`, "gi");
+    TAG_REGEX_CACHE.set(lowerTag, regex);
+  }
+  regex.lastIndex = 0;
+  return regex;
+}
+
 function extractTagInnerHtml(html: string, tag: string): string[] {
   const values: string[] = [];
-  const tagRegex = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
+  const tagRegex = getTagRegex(tag);
   for (const match of html.matchAll(tagRegex)) {
     values.push(match[1] ?? "");
   }
