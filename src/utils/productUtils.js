@@ -110,7 +110,8 @@ export function getHighestSeverity(product, flags, ingredients) {
     ...asArray(ingredients).map((ingredient) => ingredient?.highestSeverity || ingredient?.safety),
   ].map(normalizeSeverity);
 
-  return severities.sort((a, b) => (severityRank[b] ?? 0) - (severityRank[a] ?? 0))[0] || "none";
+  const highest = severities.sort((a, b) => (severityRank[b] ?? 0) - (severityRank[a] ?? 0))[0];
+  return severityRank[highest] !== undefined ? highest : "none";
 }
 
 export function formatPrice(product) {
