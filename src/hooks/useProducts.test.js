@@ -48,4 +48,35 @@ describe('useProducts', () => {
     expect(result.current.source).toBe('static');
     expect(result.current.error).toBe(errorMessage);
   });
+
+  it('ignores fetch result if unmounted', async () => {
+    let resolveFetch;
+    const fetchPromise = new Promise(resolve => {
+      resolveFetch = resolve;
+    });
+    productsApi.fetchProducts.mockReturnValueOnce(fetchPromise);
+
+    const { unmount } = renderHook(() => useProducts());
+
+    unmount();
+    resolveFetch({ items: [], source: 'supabase', error: null });
+
+    await Promise.resolve();
+  });
+
+  it('ignores fetch error if unmounted', async () => {
+    let rejectFetch;
+    const fetchPromise = new Promise((_, reject) => {
+      rejectFetch = reject;
+    });
+    productsApi.fetchProducts.mockReturnValueOnce(fetchPromise);
+
+    const { unmount } = renderHook(() => useProducts());
+
+    unmount();
+    fetchPromise.catch(() => {});
+    rejectFetch(new Error('Network error'));
+
+    await Promise.resolve();
+  });
 });
