@@ -12,7 +12,7 @@ export function isSafeHttpUrl(value) {
   }
 }
 
-export function sanitizeHttpUrl(value) {
+function sanitizeHttpUrl(value) {
   return isSafeHttpUrl(value) ? value : "";
 }
 
