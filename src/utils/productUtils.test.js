@@ -1,3 +1,4 @@
+import { normalizeImage, normalizePurchaseLink, normalizeRecommendedProduct, mergeUniqueLinks, formatDate } from './productUtils';
 import { isSafeHttpUrl } from './productUtils';
 import { getHighestSeverity, normalizeSeverity, getSeverityLabel } from './productUtils';
 import { SEVERITY_RANK } from '../constants/severity';
@@ -94,5 +95,42 @@ describe('isSafeHttpUrl', () => {
   it('returns false for malformed URLs', () => {
     expect(isSafeHttpUrl('not a url')).toBe(false);
     expect(isSafeHttpUrl('://missing-protocol')).toBe(false);
+  });
+});
+
+describe('additional product utilities', () => {
+  it('normalizes images correctly', () => {
+    expect(normalizeImage(null)).toBeNull();
+    expect(normalizeImage('https://img.com/a.jpg')).toBe('https://img.com/a.jpg');
+    expect(normalizeImage({ url: 'https://img.com/b.jpg' })).toBe('https://img.com/b.jpg');
+  });
+
+  it('normalizes purchase links correctly', () => {
+    expect(normalizePurchaseLink(null)).toBeNull();
+    expect(normalizePurchaseLink('https://store.com')).toEqual({ label: 'Buy now', url: 'https://store.com' });
+    expect(normalizePurchaseLink({ url: 'https://store.com', label: 'Store' })).toEqual({ label: 'Store', url: 'https://store.com' });
+  });
+
+  it('normalizes recommended products', () => {
+    expect(normalizeRecommendedProduct(null)).toBeNull();
+    expect(normalizeRecommendedProduct({ name: 'Sun cream', brandName: 'Brand' })).toMatchObject({
+      name: 'Sun cream',
+      brand: 'Brand',
+    });
+  });
+
+  it('merges unique links', () => {
+    const links = [
+      { url: 'https://a.com', label: 'A' },
+      { url: 'https://a.com', label: 'A duplicate' },
+      { url: 'https://b.com', label: 'B' }
+    ];
+    expect(mergeUniqueLinks(links)).toHaveLength(2);
+  });
+
+  it('formats dates properly', () => {
+    expect(formatDate(null)).toBe('');
+    expect(formatDate('invalid')).toBe('');
+    expect(formatDate('2026-08-31')).toMatch(/2026/);
   });
 });
