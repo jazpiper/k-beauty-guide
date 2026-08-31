@@ -1,5 +1,6 @@
 import type { ProductImageCandidate } from "./types";
 import { dedupeImageCandidates, isSafeHttpImageUrl } from "./mediaValidation";
+import { getAttrValue } from "./utils";
 
 type UnknownRecord = Record<string, unknown>;
 type HtmlElementMatch = { attrs: string; inner: string };
@@ -46,7 +47,8 @@ function collectJsonLdImages(value: unknown, output: string[]): void {
   }
 
   for (const nested of Object.values(record)) {
-    if (nested && typeof nested === "object") collectJsonLdImages(nested, output);
+    if (nested && typeof nested === "object")
+      collectJsonLdImages(nested, output);
   }
 }
 
@@ -65,12 +67,6 @@ function createImageCandidates(
   return dedupeImageCandidates(candidates);
 }
 
-function getAttrValue(attrs: string, attrName: string): string | null {
-  const pattern = new RegExp(`\\b${attrName}\\s*=\\s*["']([^"']+)["']`, "i");
-  const match = attrs.match(pattern);
-  return match?.[1] ?? null;
-}
-
 function collectImageSrcFromHtml(html: string): string[] {
   const urls: string[] = [];
   const imgRegex = /<img\b([^>]*)>/gi;
@@ -84,16 +80,23 @@ function collectImageSrcFromHtml(html: string): string[] {
 
 function extractElementsByTag(html: string, tag: string): HtmlElementMatch[] {
   const matches: HtmlElementMatch[] = [];
-  const pairRegex = new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi");
+  const pairRegex = new RegExp(
+    `<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`,
+    "gi",
+  );
   for (const match of html.matchAll(pairRegex)) {
     matches.push({ attrs: match[1] ?? "", inner: match[2] ?? "" });
   }
   return matches;
 }
 
-const CONTAINER_PATTERNS_MEDIA = ["div", "section", "article", "main", "ul"].map(
-  (tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi")
-);
+const CONTAINER_PATTERNS_MEDIA = [
+  "div",
+  "section",
+  "article",
+  "main",
+  "ul",
+].map((tag) => new RegExp(`<${tag}\\b([^>]*)>([\\s\\S]*?)<\\/${tag}>`, "gi"));
 
 function extractContainerById(html: string, id: string): string[] {
   const containers: string[] = [];
@@ -119,13 +122,18 @@ function extractSectionByAriaLabel(html: string, ariaLabel: string): string[] {
   return sections;
 }
 
-function extractImageUrlsBySimpleSelector(html: string, selector: string): string[] {
+function extractImageUrlsBySimpleSelector(
+  html: string,
+  selector: string,
+): string[] {
   const normalized = selector.trim();
   const lower = normalized.toLowerCase();
 
   if (!normalized) return [];
   if (lower.includes("og:image")) {
-    return extractImageCandidatesFromOpenGraph(html).map((candidate) => candidate.url);
+    return extractImageCandidatesFromOpenGraph(html).map(
+      (candidate) => candidate.url,
+    );
   }
 
   if (lower === "img") {

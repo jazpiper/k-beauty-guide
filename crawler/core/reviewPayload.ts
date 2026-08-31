@@ -107,7 +107,9 @@ function normalizeTextCandidates(
   return (textCandidates ?? []).map((candidate) => ({ ...candidate }));
 }
 
-function normalizeProductImageUrls(candidate: ReviewQueueCandidateInput): string[] {
+function normalizeProductImageUrls(
+  candidate: ReviewQueueCandidateInput,
+): string[] {
   const imageUrls = dedupeCandidateImageUrls(candidate.imageUrls);
   return imageUrls;
 }
