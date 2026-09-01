@@ -63,6 +63,7 @@ async function handleRequest(req: Request): Promise<Response> {
     pathId(req, "admin-review-action");
 
   const validationError = validateRequest(
+    req,
     action,
     reviewItemId,
     idempotencyKey,
@@ -87,7 +88,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const actorResult = await requireActiveAdmin(serviceClient.client, req);
   if (actorResult instanceof Response) return actorResult;
 
-  const result = await applyReviewAction(serviceClient.client, {
+  const result = await applyReviewAction(serviceClient.client, req, {
     action,
     assignedTo,
     actor: actorResult,
@@ -101,6 +102,7 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 function validateRequest(
+  req: Request,
   action: string,
   reviewItemId: string | null,
   idempotencyKey: string,
@@ -207,6 +209,7 @@ async function requireActiveAdmin(
 
 async function applyReviewAction(
   client: SupabaseClient,
+  req: Request,
   params: {
     action: ReviewAction;
     assignedTo: string;
@@ -216,7 +219,7 @@ async function applyReviewAction(
     reviewItemId: string;
   },
 ): Promise<unknown | Response> {
-  const existingAudit = await findExistingAudit(client, params);
+  const existingAudit = await findExistingAudit(client, req, params);
   if (existingAudit instanceof Response) return existingAudit;
   if (existingAudit) {
     return {
@@ -267,6 +270,7 @@ async function applyReviewAction(
 
   const claimResult = await claimReviewItem(
     client,
+    req,
     reviewItem as ReviewItem,
     params,
   );
@@ -274,9 +278,10 @@ async function applyReviewAction(
 
   const publicMutation =
     params.action === "approve"
-      ? await approveReviewItem(client, reviewItem as ReviewItem)
+      ? await approveReviewItem(client, req, reviewItem as ReviewItem)
       : await markCandidateStatus(
           client,
+          req,
           reviewItem as ReviewItem,
           params.action,
         );
@@ -307,7 +312,7 @@ async function applyReviewAction(
     );
   }
 
-  const auditResult = await writeAuditLog(client, {
+  const auditResult = await writeAuditLog(client, req, {
     action: params.action,
     actorUserId: params.actor.user_id,
     comment: params.comment || null,
@@ -334,6 +339,7 @@ async function applyReviewAction(
 
 async function findExistingAudit(
   client: SupabaseClient,
+  req: Request,
   params: {
     action: ReviewAction;
     idempotencyKey: string;
@@ -364,6 +370,7 @@ async function findExistingAudit(
 
 async function claimReviewItem(
   client: SupabaseClient,
+  req: Request,
   reviewItem: ReviewItem,
   params: {
     action: ReviewAction;
@@ -409,6 +416,7 @@ async function claimReviewItem(
 
 async function approveReviewItem(
   client: SupabaseClient,
+  req: Request,
   reviewItem: ReviewItem,
 ): Promise<unknown | Response> {
   if (reviewItem.item_type !== "product_candidate") {
@@ -449,7 +457,7 @@ async function approveReviewItem(
     );
   }
 
-  const productCandidate = candidate as ProductCandidate;
+  const productCandidate = candidate as unknown as ProductCandidate;
   if (!productCandidate.brand_name) {
     return errorResponse(
       req,
@@ -459,14 +467,42 @@ async function approveReviewItem(
     );
   }
 
+  const publishResult = await publishProductFromCandidate(
+    client,
+    req,
+    productCandidate,
+  );
+  if (publishResult instanceof Response) return publishResult;
+
+  const approveStatusResult = await markCandidateApproved(
+    client,
+    req,
+    productCandidate.id,
+  );
+  if (approveStatusResult instanceof Response) return approveStatusResult;
+
+  return {
+    applied: publishResult.existingProductId ? "updated_product" : "created_product",
+    productId: publishResult.productId,
+    candidateId: productCandidate.id,
+  };
+}
+
+async function publishProductFromCandidate(
+  client: SupabaseClient,
+  req: Request,
+  productCandidate: ProductCandidate,
+): Promise<{ productId: string; existingProductId: string | null } | Response> {
   const brandResult = await findOrCreateBrand(
     client,
-    productCandidate.brand_name,
+    req,
+    productCandidate.brand_name!,
   );
   if (brandResult instanceof Response) return brandResult;
 
   const existingProductId = await findExistingProductId(
     client,
+    req,
     productCandidate,
   );
   if (existingProductId instanceof Response) return existingProductId;
@@ -511,6 +547,7 @@ async function approveReviewItem(
   const productId = productResult.data.id as string;
   const sourceResult = await ensureProductSource(
     client,
+    req,
     productId,
     productCandidate,
   );
@@ -518,15 +555,24 @@ async function approveReviewItem(
 
   const imageResult = await ensureProductImages(
     client,
+    req,
     productId,
     productCandidate.image_urls,
   );
   if (imageResult instanceof Response) return imageResult;
 
+  return { productId, existingProductId };
+}
+
+async function markCandidateApproved(
+  client: SupabaseClient,
+  req: Request,
+  candidateId: string,
+): Promise<true | Response> {
   const { error: candidateUpdateError } = await client
     .from("product_candidates")
     .update({ status: "approved", updated_at: new Date().toISOString() })
-    .eq("id", productCandidate.id);
+    .eq("id", candidateId);
 
   if (candidateUpdateError) {
     return errorResponse(
@@ -538,15 +584,12 @@ async function approveReviewItem(
     );
   }
 
-  return {
-    applied: existingProductId ? "updated_product" : "created_product",
-    productId,
-    candidateId: productCandidate.id,
-  };
+  return true;
 }
 
 async function markCandidateStatus(
   client: SupabaseClient,
+  req: Request,
   reviewItem: ReviewItem,
   action: ReviewAction,
 ): Promise<unknown | Response> {
@@ -575,6 +618,7 @@ async function markCandidateStatus(
 
 async function findOrCreateBrand(
   client: SupabaseClient,
+  req: Request,
   brandName: string,
 ): Promise<{ id: string } | Response> {
   const slug = slugify(brandName);
@@ -617,6 +661,7 @@ async function findOrCreateBrand(
 
 async function findExistingProductId(
   client: SupabaseClient,
+  req: Request,
   candidate: ProductCandidate,
 ): Promise<string | null | Response> {
   if (candidate.source_product_id) {
@@ -664,6 +709,7 @@ async function findExistingProductId(
 
 async function ensureProductSource(
   client: SupabaseClient,
+  req: Request,
   productId: string,
   candidate: ProductCandidate,
 ): Promise<unknown | Response> {
@@ -717,6 +763,7 @@ async function ensureProductSource(
 
 async function ensureProductImages(
   client: SupabaseClient,
+  req: Request,
   productId: string,
   imageUrls: string[],
 ): Promise<unknown | Response> {
@@ -774,6 +821,7 @@ async function ensureProductImages(
 
 async function writeAuditLog(
   client: SupabaseClient,
+  req: Request,
   params: {
     action: ReviewAction;
     actorUserId: string;
