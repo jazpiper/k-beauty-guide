@@ -171,19 +171,24 @@ serve(async (req: Request) => {
 });
 
 function splitIngredientText(ingredientText: string): IngredientToken[] {
-  return String(ingredientText || "")
-    .split(/[,;]+/)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((rawName) => ({
+  const rawTokens = String(ingredientText || "").split(/[,;]+/);
+  const result: IngredientToken[] = [];
+
+  for (let i = 0; i < rawTokens.length; i++) {
+    const rawName = rawTokens[i].trim();
+    if (!rawName) continue;
+
+    const normalizedName = normalizeIngredientName(rawName);
+    if (normalizedName.length === 0) continue;
+
+    result.push({
+      position: result.length + 1,
       rawName,
-      normalizedName: normalizeIngredientName(rawName),
-    }))
-    .filter((ingredient) => ingredient.normalizedName.length > 0)
-    .map((ingredient, index) => ({
-      position: index + 1,
-      ...ingredient,
-    }));
+      normalizedName,
+    });
+  }
+
+  return result;
 }
 
 function normalizeIngredientName(value: string): string {
