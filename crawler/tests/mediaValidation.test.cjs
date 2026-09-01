@@ -65,6 +65,38 @@ function runTests() {
   result = dedupeImageCandidates(candidates);
   assert.equal(result.length, 2);
 
+  // 3. Filtering invalid URLs (invalid ports, non-HTTP schemes, empty strings, whitespace)
+  candidates = [
+    createCandidate("http://example.com:65536/image.jpg"),
+    createCandidate("ftp://example.com/image.jpg"),
+    createCandidate("not a valid url"),
+    createCandidate(""),
+    createCandidate("   "),
+  ];
+  result = dedupeImageCandidates(candidates);
+  assert.equal(result.length, 0, "should filter out invalid candidate URLs during normalization");
+
+  // 4. Test error handling (catch block) in normalizeImageUrl via mocked URL constructor exception
+  const originalURL = global.URL;
+  try {
+    global.URL = function (url, base) {
+      if (typeof url === "string" && url.includes("trigger-url-exception")) {
+        throw new Error("Simulated URL constructor exception");
+      }
+      return new originalURL(url, base);
+    };
+
+    candidates = [
+      createCandidate("https://example.com/trigger-url-exception.jpg"),
+      createCandidate("https://example.com/valid-image.jpg"),
+    ];
+    result = dedupeImageCandidates(candidates);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].url, "https://example.com/valid-image.jpg");
+  } finally {
+    global.URL = originalURL;
+  }
+
   console.log("mediaValidation.ts tests passed");
 }
 
