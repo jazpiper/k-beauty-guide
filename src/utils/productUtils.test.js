@@ -1,4 +1,5 @@
 import {
+  severityRank,
   isSafeHttpUrl,
   asArray,
   normalizeImage,
@@ -16,6 +17,14 @@ import {
 } from "./productUtils";
 
 describe("productUtils", () => {
+  describe("severityRank", () => {
+    it("exports severityRank object correctly", () => {
+      expect(severityRank).toBeDefined();
+      expect(typeof severityRank).toBe("object");
+      expect(severityRank.high).toBeGreaterThan(severityRank.low);
+    });
+  });
+
   describe("isSafeHttpUrl", () => {
     it("returns true for valid HTTP and HTTPS URLs", () => {
       expect(isSafeHttpUrl("http://example.com")).toBe(true);
@@ -88,6 +97,11 @@ describe("productUtils", () => {
         normalizeImage({ publicUrl: "https://img.com/publicUrl.jpg" }),
       ).toBe("https://img.com/publicUrl.jpg");
     });
+
+    it('returns null when image object has no supported url keys', () => {
+      expect(normalizeImage({})).toBeNull();
+      expect(normalizeImage({ alt: 'no image source' })).toBeNull();
+    });
   });
 
   describe("normalizeSourceLink", () => {
@@ -156,6 +170,43 @@ describe("productUtils", () => {
         evidence: '',
         publishedAt: '',
       });
+
+      expect(
+        normalizeSourceLink({
+          sourceUrl: 'https://test.com/paper2',
+          name: 'Study Name',
+        })
+      ).toEqual({
+        url: 'https://test.com/paper2',
+        label: 'Study Name',
+        evidence: '',
+        publishedAt: '',
+      });
+    });
+
+    it('handles invalid or missing URLs with default label fallback', () => {
+      expect(
+        normalizeSourceLink({
+          url: 'not-a-valid-url',
+          label: 'My Label',
+        })
+      ).toEqual({
+        url: '',
+        label: 'My Label',
+        evidence: '',
+        publishedAt: '',
+      });
+
+      expect(
+        normalizeSourceLink({
+          url: 'not-a-valid-url',
+        })
+      ).toEqual({
+        url: '',
+        label: 'Source',
+        evidence: '',
+        publishedAt: '',
+      });
     });
 
     it('handles error path when URL parsing fails in catch block', () => {
@@ -217,6 +268,10 @@ describe("productUtils", () => {
         label: "Official Store",
         url: "https://store.com/item2",
       });
+      expect(normalizePurchaseLink({ link: 'https://store.com/item3' })).toEqual({
+        label: 'Buy now',
+        url: 'https://store.com/item3',
+      });
     });
   });
 
@@ -246,6 +301,36 @@ describe("productUtils", () => {
         skin: "Dry",
         highestSeverity: "caution",
       });
+
+      expect(normalizeRecommendedProduct({})).toEqual({
+        id: undefined,
+        slug: undefined,
+        name: 'Recommended product',
+        brand: 'K-Beauty',
+        category: '',
+        skin: '',
+        highestSeverity: 'none',
+      });
+
+      expect(normalizeRecommendedProduct({ slug: 'only-slug', brand: 'Brand Y' })).toEqual({
+        id: 'only-slug',
+        slug: 'only-slug',
+        name: 'Recommended product',
+        brand: 'Brand Y',
+        category: '',
+        skin: '',
+        highestSeverity: 'none',
+      });
+
+      expect(normalizeRecommendedProduct({ name: 'Product Z' })).toEqual({
+        id: 'Product Z',
+        slug: undefined,
+        name: 'Product Z',
+        brand: 'K-Beauty',
+        category: '',
+        skin: '',
+        highestSeverity: 'none',
+      });
     });
   });
 
@@ -274,9 +359,9 @@ describe("productUtils", () => {
     });
 
     it("generates google search url for product", () => {
-      expect(getSearchUrl({ brand: "Cosrx", name: "Snail Mucin" })).toContain(
-        "https://www.google.com/search?q=Cosrx%20Snail%20Mucin",
-      );
+      expect(getSearchUrl({ brand: "Cosrx", name: "Snail Mucin" })).toContain("https://www.google.com/search?q=Cosrx%20Snail%20Mucin");
+      expect(getSearchUrl({ brand: "Cosrx" })).toContain("https://www.google.com/search?q=Cosrx");
+      expect(getSearchUrl({ name: "Snail Mucin" })).toContain("https://www.google.com/search?q=Snail%20Mucin");
     });
   });
 
@@ -368,6 +453,10 @@ describe("productUtils", () => {
       const ingredients = [undefined, null, { highestSeverity: "low" }];
       expect(getHighestSeverity({}, flags, ingredients)).toBe("medium");
     });
+
+    it('handles non-array or single item values for flags and ingredients', () => {
+      expect(getHighestSeverity({}, { severity: 'high' }, { safety: 'low' })).toBe('high');
+    });
   });
 
   describe("formatPrice", () => {
@@ -396,6 +485,11 @@ describe("productUtils", () => {
     it("returns price string representation if only numeric price exists", () => {
       expect(formatPrice({ price: 30 })).toBe("30");
     });
+
+    it('returns empty string or formatted price for zero or empty values', () => {
+      expect(formatPrice({ price: 0 })).toBe('');
+      expect(formatPrice({ priceKrw: '0' })).toBe('₩0');
+    });
   });
 
   describe("formatDate", () => {
@@ -407,6 +501,12 @@ describe("productUtils", () => {
     it("formats valid dates into short month, numeric day, and numeric year format", () => {
       const formatted = formatDate("2023-11-15T00:00:00Z");
       expect(formatted).toMatch(/Nov 15, 2023/);
+    });
+
+    it('supports Date instances and timestamps', () => {
+      const date = new Date('2024-05-20T00:00:00Z');
+      expect(formatDate(date)).toMatch(/May 20, 2024/);
+      expect(formatDate(1700000000000)).toMatch(/2023/);
     });
   });
   describe("getRecommendedProducts", () => {
