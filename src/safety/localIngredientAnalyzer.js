@@ -11,14 +11,21 @@ class AhoNode {
   }
 }
 
-export function analyzeKnownIngredientsLocally(
-  ingredientText,
-  knownIngredients,
-) {
+let cachedKnownIngredientsRef = null;
+let cachedIndex = null;
+
+function getOrBuildKnownIngredientsIndex(knownIngredients) {
+  if (
+    cachedKnownIngredientsRef === knownIngredients &&
+    cachedIndex !== null
+  ) {
+    return cachedIndex;
+  }
+
   const exactMatchMap = new Map();
   const precomputedCandidates = [];
 
-  for (const ingredient of knownIngredients) {
+  for (const ingredient of knownIngredients || []) {
     const candidates = [
       ingredient.name,
       ingredient.korean,
@@ -86,6 +93,23 @@ export function analyzeKnownIngredientsLocally(
       queue.push(child);
     }
   }
+
+  cachedKnownIngredientsRef = knownIngredients;
+  cachedIndex = {
+    exactMatchMap,
+    ahoRoot,
+    candidateIndexToIngredient,
+  };
+
+  return cachedIndex;
+}
+
+export function analyzeKnownIngredientsLocally(
+  ingredientText,
+  knownIngredients,
+) {
+  const { exactMatchMap, ahoRoot, candidateIndexToIngredient } =
+    getOrBuildKnownIngredientsIndex(knownIngredients);
 
   const parsedIngredients = splitIngredientText(ingredientText).map((token) => {
     const match = findLocalMatch(
