@@ -168,16 +168,29 @@ export default function SkinQuiz() {
     <div className="quiz-page">
       <div className="quiz-header">
         <div className="quiz-progress-label">Question {step} of {QUESTIONS.length}</div>
-        <div className="quiz-progress-bar">
+        <div
+          className="quiz-progress-bar"
+          role="progressbar"
+          aria-valuenow={step}
+          aria-valuemin={1}
+          aria-valuemax={QUESTIONS.length}
+          aria-valuetext={`Question ${step} of ${QUESTIONS.length}`}
+        >
           <div className="quiz-progress-fill" style={{ width: `${progress}%` }} />
         </div>
       </div>
       <div className="quiz-question-area">
         <div className="question-text">{q.question}</div>
-        <div className="options">
+        <div className="options" role="radiogroup" aria-label={q.question}>
           {q.options.map((opt, i) => (
-            <button key={i} onClick={() => handleAnswer(opt.value)}
-              className={`option-btn ${selected === opt.value ? "selected" : ""}`}>
+            <button
+              key={i}
+              type="button"
+              role="radio"
+              aria-checked={selected === opt.value}
+              onClick={() => handleAnswer(opt.value)}
+              className={`option-btn ${selected === opt.value ? "selected" : ""}`}
+            >
               {opt.text}
             </button>
           ))}
