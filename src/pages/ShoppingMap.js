@@ -91,7 +91,12 @@ export default function ShoppingMap() {
 
         {selected && (
           <div className="store-detail">
-            <button type="button" className="close-btn" onClick={() => setSelected(null)}>
+            <button
+              type="button"
+              className="close-btn"
+              onClick={() => setSelected(null)}
+              aria-label="Close store details"
+            >
               ✕
             </button>
             <div className="store-emoji-big">{selected.emoji}</div>
