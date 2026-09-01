@@ -132,6 +132,57 @@ describe("productUtils", () => {
         publishedAt: "2022-05-10",
       });
     });
+
+    it('handles object sources with invalid or unsafe URLs', () => {
+      expect(
+        normalizeSourceLink({
+          url: 'invalid-url',
+          label: 'Invalid Link',
+        })
+      ).toEqual({
+        url: '',
+        label: 'Invalid Link',
+        evidence: '',
+        publishedAt: '',
+      });
+
+      expect(
+        normalizeSourceLink({
+          url: 'javascript:alert(1)',
+        })
+      ).toEqual({
+        url: '',
+        label: 'Source',
+        evidence: '',
+        publishedAt: '',
+      });
+    });
+
+    it('handles error path when URL parsing fails in catch block', () => {
+      const OriginalURL = global.URL;
+      const mockURL = jest.fn().mockImplementation((val) => {
+        if (val === 'https://error-trigger.com') {
+          throw new Error('URL parse error');
+        }
+        return new OriginalURL(val);
+      });
+      global.URL = mockURL;
+
+      try {
+        const resultWithLabel = normalizeSourceLink({
+          url: 'https://error-trigger.com',
+          label: 'Predefined Label',
+        });
+        expect(resultWithLabel.label).toBe('Predefined Label');
+
+        const resultWithoutLabel = normalizeSourceLink({
+          url: 'https://error-trigger.com',
+        });
+        expect(resultWithoutLabel.label).toBe('https://error-trigger.com');
+      } finally {
+        global.URL = OriginalURL;
+      }
+    });
   });
 
   describe("normalizePurchaseLink", () => {
