@@ -1,14 +1,13 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useProductDetail } from "../hooks/useProductDetail";
-import { fallbackProducts } from "../data/products";
+import { useProductDocumentMeta } from "../hooks/useProductDocumentMeta";
 import {
-  severityRank,
   asArray,
   normalizeImage,
   normalizeSourceLink,
   normalizePurchaseLink,
-  normalizeRecommendedProduct,
+  getRecommendedProducts,
   mergeUniqueLinks,
   getSearchUrl,
   getHighestSeverity,
@@ -81,49 +80,17 @@ export default function ProductDetail({ slug: explicitSlug }) {
     ingredientItems,
   );
 
-  const recommendedItems = useMemo(() => {
-    const fromDetail = asArray(recommendedProducts)
-      .map(normalizeRecommendedProduct)
-      .filter(Boolean);
-    if (fromDetail.length > 0) return fromDetail.slice(0, 3);
+  const recommendedItems = useMemo(
+    () =>
+      getRecommendedProducts(
+        product,
+        recommendedProducts,
+        highestSeverity,
+        flagCount,
+      ),
+    [recommendedProducts, product, highestSeverity, flagCount],
+  );
 
-    if (!product) return [];
-    const currentSkinSignal = String(product.skin || "")
-      .toLowerCase()
-      .split("/")[0];
-    const currentSeverityRank = severityRank[highestSeverity] ?? 0;
-    const hasSafetySignals = currentSeverityRank > 0 || flagCount > 0;
-
-    return fallbackProducts
-      .filter((item) => item.slug !== product.slug)
-      .map(normalizeRecommendedProduct)
-      .sort((a, b) => {
-        const scoreItem = (item) => {
-          let score = 0;
-          if (item.category && item.category === product.category) score += 3;
-          if (
-            currentSkinSignal &&
-            item.skin &&
-            item.skin.toLowerCase().includes(currentSkinSignal)
-          )
-            score += 2;
-          if (hasSafetySignals) {
-            const text = `${item.name || ""} ${item.brand || ""}`.toLowerCase();
-            if (
-              text.includes("gentle") ||
-              text.includes("calming") ||
-              text.includes("soonjung")
-            )
-              score += 2;
-            if (text.includes("unscented") || text.includes("centella"))
-              score += 1;
-          }
-          return score;
-        };
-        return scoreItem(b) - scoreItem(a);
-      })
-      .slice(0, 3);
-  }, [recommendedProducts, product, highestSeverity, flagCount]);
   const brandName = product?.brandName || product?.brand || "K-Beauty";
   const price = formatPrice(product);
   const updatedAt = formatDate(product?.updatedAt || product?.publishedAt);
@@ -131,43 +98,7 @@ export default function ProductDetail({ slug: explicitSlug }) {
   const hasAnySourceEvidence = sourceLinks.some((item) => item.evidence);
   const fallbackSearchUrl = useMemo(() => getSearchUrl(product), [product]);
 
-  useEffect(() => {
-    if (!product) return undefined;
-    const previousTitle = document.title;
-    const metaName = "description";
-    let metaTag = document.querySelector(`meta[name="${metaName}"]`);
-    const hadMeta = Boolean(metaTag);
-
-    if (!metaTag) {
-      metaTag = document.createElement("meta");
-      metaTag.setAttribute("name", metaName);
-      document.head.appendChild(metaTag);
-    }
-
-    const previousDescription = metaTag.getAttribute("content") || "";
-    const seoDescription = [
-      product.name,
-      product.category,
-      product.skin,
-      `Safety notes: ${flagCount}`,
-      product.description,
-    ]
-      .filter(Boolean)
-      .join(" • ")
-      .slice(0, 155);
-
-    document.title = `${product.name} | K-Beauty Guide`;
-    metaTag.setAttribute("content", seoDescription);
-
-    return () => {
-      document.title = previousTitle;
-      if (hadMeta) {
-        metaTag.setAttribute("content", previousDescription);
-      } else {
-        metaTag.remove();
-      }
-    };
-  }, [product, flagCount]);
+  useProductDocumentMeta(product, flagCount);
 
   return (
     <div className="pd-page">
