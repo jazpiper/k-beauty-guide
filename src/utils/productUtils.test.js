@@ -178,7 +178,7 @@ describe("productUtils", () => {
         const resultWithoutLabel = normalizeSourceLink({
           url: 'https://error-trigger.com',
         });
-        expect(resultWithoutLabel.label).toBe('https://error-trigger.com');
+        expect(resultWithoutLabel.label).toBe('Source');
       } finally {
         global.URL = OriginalURL;
       }

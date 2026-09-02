@@ -57,7 +57,7 @@ export function normalizeSourceLink(source) {
         ? source.evidence || source.description || ""
         : "",
     publishedAt:
-      typeof source === "object" ? source.publishedAt || source.date : "",
+      typeof source === "object" ? source.publishedAt || source.date || "" : "",
   };
 }
 

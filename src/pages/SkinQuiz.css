@@ -14,8 +14,9 @@
 .quiz-question-area { max-width: 520px; margin: 0 auto; padding: 40px 24px; }
 .question-text { font-size: 22px; font-weight: 800; margin-bottom: 28px; line-height: 1.4; }
 .options { display: flex; flex-direction: column; gap: 12px; }
-.option-btn { background: #fff; border: 2px solid #FFE0EC; border-radius: 16px; padding: 16px 20px; font-size: 15px; text-align: left; cursor: pointer; transition: all .2s; font-weight: 600; color: #444; }
+.option-btn { background: #fff; border: 2px solid #FFE0EC; border-radius: 16px; padding: 16px 20px; font-size: 15px; text-align: left; cursor: pointer; transition: all .2s; font-weight: 600; color: #444; outline: none; }
 .option-btn:hover { border-color: #FF6B9D; color: #FF6B9D; transform: translateX(4px); }
+.option-btn:focus-visible { outline: 3px solid #FF6B9D; outline-offset: 2px; }
 .option-btn.selected { background: linear-gradient(90deg,#FF6B9D,#FF9A6C); color: #fff; border-color: transparent; }
 .result-page { padding: 60px 24px 40px; text-align: center; }
 .result-emoji { font-size: 72px; margin-bottom: 16px; }
