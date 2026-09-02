@@ -13,6 +13,11 @@ test("analyze-ingredient-text filters ingredient_aliases by normalized_alias tok
   assert.match(source, /\.in\(\s*"normalized_alias"/);
 });
 
+test("splitIngredientText implementation structural checks", () => {
+  // Check that splitIngredientText avoids multi-map/filter chain
+  assert.doesNotMatch(source, /\.map\(.*?\)\.filter\(Boolean\)\.map\(/s);
+});
+
 test("Memory comparison: 1,000,000 rows payload vs target token query (e.g. 50 tokens)", () => {
   // Simulate memory footprint of 1 million row alias cache vs targeted token result (~50 tokens)
   const sampleRow = (i) => ({
@@ -24,8 +29,8 @@ test("Memory comparison: 1,000,000 rows payload vs target token query (e.g. 50 t
       canonical_name: `Canonical Name ${i}`,
       inci_name: `INCI NAME ${i}`,
       korean_name: `성분 ${i}`,
-      source_status: "verified"
-    }
+      source_status: "verified",
+    },
   });
 
   // Measure 1M rows memory footprint
@@ -51,8 +56,15 @@ test("Memory comparison: 1,000,000 rows payload vs target token query (e.g. 50 t
   const fiftyRowsKB = (memAfter50 - memBefore50) / 1024;
 
   console.log(`[Benchmark Baseline vs Optimized Memory]`);
-  console.log(`1,000,000 cached rows RAM estimate: ~${millionRowsMB.toFixed(2)} MB`);
-  console.log(`Targeted token query (50 rows) RAM estimate: ~${fiftyRowsKB.toFixed(2)} KB`);
+  console.log(
+    `1,000,000 cached rows RAM estimate: ~${millionRowsMB.toFixed(2)} MB`,
+  );
+  console.log(
+    `Targeted token query (50 rows) RAM estimate: ~${fiftyRowsKB.toFixed(2)} KB`,
+  );
 
-  assert.ok(millionRowsMB > 50, "1M rows should take significant memory (>50MB)");
+  assert.ok(
+    millionRowsMB > 50,
+    "1M rows should take significant memory (>50MB)",
+  );
 });
