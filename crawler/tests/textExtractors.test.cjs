@@ -16,17 +16,14 @@ require.extensions[".ts"] = (module, filename) => {
   module._compile(compiled.outputText, filename);
 };
 
-
 const {
   cleanupDescriptionText,
   extractDescriptionCandidatesFromJsonLd,
   extractDescriptionCandidatesFromOpenGraph,
   extractDescriptionCandidatesFromShopifyProductJson,
-  extractDescriptionCandidatesFromDomSelectors
+  extractDescriptionCandidatesFromDomSelectors,
+  detectClaimRiskFlags,
 } = require("../core/textExtractors.ts");
-
-
-const { detectClaimRiskFlags } = require("../core/textExtractors.ts");
 
 function testDetectClaimRiskFlags() {
   console.log("Testing detectClaimRiskFlags...");
@@ -35,7 +32,15 @@ function testDetectClaimRiskFlags() {
     { input: "This product cures eczema.", expected: ["medical_treatment", "disease_reference"] },
     { input: "Contains FDA approved drugs.", expected: ["regulatory_drug"] },
     { input: "SPF 50 and PA++++ protection.", expected: ["spf_pa_claim"] },
-    { input: "Safe for pregnancy, hypoallergenic, non-comedogenic, and dermatologist tested.", expected: ["pregnancy_safe_claim", "hypoallergenic_claim", "non_comedogenic_claim", "dermatologist_tested_claim"] },
+    {
+      input: "Safe for pregnancy, hypoallergenic, non-comedogenic, and dermatologist tested.",
+      expected: [
+        "pregnancy_safe_claim",
+        "hypoallergenic_claim",
+        "non_comedogenic_claim",
+        "dermatologist_tested_claim",
+      ],
+    },
     { input: "아토피 완치.", expected: ["korean_treatment"] },
     { input: "Just a normal moisturizer.", expected: [] },
     { input: null, expected: [] },
@@ -102,6 +107,8 @@ function testExtractDescriptionCandidatesFromJsonLd() {
 
   assert.deepEqual(extractDescriptionCandidatesFromJsonLd(null), []);
   assert.deepEqual(extractDescriptionCandidatesFromJsonLd("string"), []);
+  assert.deepEqual(extractDescriptionCandidatesFromJsonLd(123), []);
+  assert.deepEqual(extractDescriptionCandidatesFromJsonLd(true), []);
 
   assert.deepEqual(
     extractDescriptionCandidatesFromJsonLd({ description: "Test desc" }),
@@ -130,6 +137,23 @@ function testExtractDescriptionCandidatesFromJsonLd() {
     [{ text: "Nested desc", source: "json_ld", selector: undefined }]
   );
 
+  // Non-string entries in description array & primitive values
+  assert.deepEqual(
+    extractDescriptionCandidatesFromJsonLd({
+      description: [123, null, "  <p>Cleaned &amp; Hydrating</p>  ", "Cleaned & Hydrating"]
+    }),
+    [{ text: "Cleaned & Hydrating", source: "json_ld", selector: undefined }]
+  );
+
+  // Deduplication across JSON-LD graph
+  assert.deepEqual(
+    extractDescriptionCandidatesFromJsonLd({
+      description: "Duplicate desc",
+      nested: { description: "Duplicate desc" },
+    }),
+    [{ text: "Duplicate desc", source: "json_ld", selector: undefined }]
+  );
+
   console.log("extractDescriptionCandidatesFromJsonLd tests passed!");
 }
 
@@ -152,11 +176,37 @@ function testExtractDescriptionCandidatesFromOpenGraph() {
     ]
   );
 
+  // HTML entity decoding, duplicate tags, and missing content attributes
+  const html2 = `
+    <html>
+      <head>
+        <meta property="og:description" content="Moisturizer &amp; Cream">
+        <meta property="og:description" content="Moisturizer & Cream">
+        <meta property="og:description">
+        <META PROPERTY="og:description" CONTENT="Upper Tag">
+      </head>
+    </html>
+  `;
+
+  assert.deepEqual(
+    extractDescriptionCandidatesFromOpenGraph(html2),
+    [
+      { text: "Moisturizer & Cream", source: "open_graph", selector: undefined },
+      { text: "Upper Tag", source: "open_graph", selector: undefined }
+    ]
+  );
+
+  assert.deepEqual(extractDescriptionCandidatesFromOpenGraph(""), []);
+
   console.log("extractDescriptionCandidatesFromOpenGraph tests passed!");
 }
 
 function testExtractDescriptionCandidatesFromShopifyProductJson() {
   console.log("Testing extractDescriptionCandidatesFromShopifyProductJson...");
+
+  assert.deepEqual(extractDescriptionCandidatesFromShopifyProductJson(null), []);
+  assert.deepEqual(extractDescriptionCandidatesFromShopifyProductJson("string"), []);
+  assert.deepEqual(extractDescriptionCandidatesFromShopifyProductJson(123), []);
 
   assert.deepEqual(
     extractDescriptionCandidatesFromShopifyProductJson({
@@ -180,6 +230,26 @@ function testExtractDescriptionCandidatesFromShopifyProductJson() {
       { text: "Root desc", source: "shopify_product_json", selector: undefined },
       { text: "Root body", source: "shopify_product_json", selector: undefined }
     ]
+  );
+
+  // Deduplication between description and body_html, plus non-string handling
+  assert.deepEqual(
+    extractDescriptionCandidatesFromShopifyProductJson({
+      product: {
+        description: "<b>Same text</b>",
+        body_html: "<p>Same text</p>",
+        extra: 123
+      }
+    }),
+    [{ text: "Same text", source: "shopify_product_json", selector: undefined }]
+  );
+
+  assert.deepEqual(
+    extractDescriptionCandidatesFromShopifyProductJson({
+      description: 123,
+      body_html: null
+    }),
+    []
   );
 
   console.log("extractDescriptionCandidatesFromShopifyProductJson tests passed!");
@@ -229,6 +299,27 @@ function testExtractDescriptionCandidatesFromDomSelectors() {
     extractDescriptionCandidatesFromDomSelectors(html, ["#content article[0]"]),
     [
       { text: "Div content", source: "dom_selector", selector: "#content article[0]" }
+    ]
+  );
+
+  // Out of bounds indexing & unsupported selector types
+  assert.deepEqual(
+    extractDescriptionCandidatesFromDomSelectors(html, ["#content article[99]", "#content article[-1]"]),
+    []
+  );
+
+  assert.deepEqual(
+    extractDescriptionCandidatesFromDomSelectors(html, [".some-class-selector", ""]),
+    []
+  );
+
+  // Default parameters test (uses og:description and p by default)
+  assert.deepEqual(
+    extractDescriptionCandidatesFromDomSelectors(html),
+    [
+      { text: "OG DOM desc", source: "dom_selector", selector: 'meta[property="og:description"]' },
+      { text: "Paragraph 1", source: "dom_selector", selector: "p" },
+      { text: "Paragraph 2", source: "dom_selector", selector: "p" }
     ]
   );
 
