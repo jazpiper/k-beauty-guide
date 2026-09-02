@@ -1,19 +1,7 @@
-import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useProductDetail } from "../hooks/useProductDetail";
-import { useProductDocumentMeta } from "../hooks/useProductDocumentMeta";
-import {
-  asArray,
-  normalizeImage,
-  normalizeSourceLink,
-  normalizePurchaseLink,
-  getRecommendedProducts,
-  mergeUniqueLinks,
-  getSearchUrl,
-  getHighestSeverity,
-  formatPrice,
-  formatDate,
-} from "../utils/productUtils";
+import { useProductDetailData } from "../hooks/useProductDetailData";
+import { useProductSeo } from "../hooks/useProductSeo";
 import { ProductHero } from "../components/ProductDetail/ProductHero";
 import { ProductSummary } from "../components/ProductDetail/ProductSummary";
 import { IngredientsPanel } from "../components/ProductDetail/IngredientsPanel";
@@ -27,78 +15,27 @@ export default function ProductDetail({ slug: explicitSlug }) {
   const navigate = useNavigate();
   const params = useParams();
   const slug = explicitSlug || params.slug || params.productSlug || params.id;
+  const detailData = useProductDetail(slug);
+  const { product, source, error, loading } = detailData;
+
   const {
-    product,
-    ingredients = [],
-    flags = [],
-    sources = [],
-    images = [],
-    recommendedProducts = [],
-    source,
-    error,
-    loading,
-  } = useProductDetail(slug);
-
-  const ingredientItems = useMemo(() => asArray(ingredients), [ingredients]);
-  const flagItems = useMemo(() => asArray(flags), [flags]);
-  const sourceLinks = useMemo(() => {
-    const normalized = asArray(sources)
-      .map(normalizeSourceLink)
-      .filter(Boolean);
-    const fromFlags = flagItems
-      .map((flag) =>
-        normalizeSourceLink({
-          label:
-            flag.sourceLabel ||
-            `${flag.ingredientName || "Ingredient"} reference`,
-          url: flag.sourceUrl,
-          evidence:
-            flag.whyItMatters || flag.description || flag.recommendation,
-        }),
-      )
-      .filter(Boolean);
-    return mergeUniqueLinks([...normalized, ...fromFlags]);
-  }, [sources, flagItems]);
-  const imageUrls = useMemo(
-    () => asArray(images).map(normalizeImage).filter(Boolean),
-    [images],
-  );
-  const purchaseLinks = useMemo(() => {
-    const direct = asArray(product?.purchaseLinks || product?.buyLinks)
-      .map(normalizePurchaseLink)
-      .filter(Boolean);
-    const brand = normalizePurchaseLink({
-      label: "Official brand site",
-      url: product?.brandOfficialUrl,
-    });
-    return mergeUniqueLinks([...direct, ...(brand ? [brand] : [])]);
-  }, [product]);
-  const flagCount = product?.safetyFlagCount ?? flagItems.length;
-  const highestSeverity = getHighestSeverity(
-    product,
-    flagItems,
     ingredientItems,
-  );
+    flagItems,
+    sourceLinks,
+    imageUrls,
+    purchaseLinks,
+    flagCount,
+    highestSeverity,
+    recommendedItems,
+    brandName,
+    price,
+    updatedAt,
+    hasWarnings,
+    hasAnySourceEvidence,
+    fallbackSearchUrl,
+  } = useProductDetailData(detailData);
 
-  const recommendedItems = useMemo(
-    () =>
-      getRecommendedProducts(
-        product,
-        recommendedProducts,
-        highestSeverity,
-        flagCount,
-      ),
-    [recommendedProducts, product, highestSeverity, flagCount],
-  );
-
-  const brandName = product?.brandName || product?.brand || "K-Beauty";
-  const price = formatPrice(product);
-  const updatedAt = formatDate(product?.updatedAt || product?.publishedAt);
-  const hasWarnings = flagItems.length > 0 || flagCount > 0;
-  const hasAnySourceEvidence = sourceLinks.some((item) => item.evidence);
-  const fallbackSearchUrl = useMemo(() => getSearchUrl(product), [product]);
-
-  useProductDocumentMeta(product, flagCount);
+  useProductSeo(product, flagCount);
 
   return (
     <div className="pd-page">
