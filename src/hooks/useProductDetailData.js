@@ -1,15 +1,13 @@
 import { useMemo } from "react";
-import { fallbackProducts } from "../data/products";
 import {
-  severityRank,
   asArray,
   normalizeImage,
   normalizeSourceLink,
   normalizePurchaseLink,
-  normalizeRecommendedProduct,
   mergeUniqueLinks,
   getSearchUrl,
   getHighestSeverity,
+  getRecommendedProducts,
   formatPrice,
   formatDate,
 } from "../utils/productUtils";
@@ -69,49 +67,16 @@ export function useProductDetailData(detailData = {}) {
     ingredientItems,
   );
 
-  const recommendedItems = useMemo(() => {
-    const fromDetail = asArray(recommendedProducts)
-      .map(normalizeRecommendedProduct)
-      .filter(Boolean);
-    if (fromDetail.length > 0) return fromDetail.slice(0, 3);
-
-    if (!product) return [];
-    const currentSkinSignal = String(product.skin || "")
-      .toLowerCase()
-      .split("/")[0];
-    const currentSeverityRank = severityRank[highestSeverity] ?? 0;
-    const hasSafetySignals = currentSeverityRank > 0 || flagCount > 0;
-
-    return fallbackProducts
-      .filter((item) => item.slug !== product.slug)
-      .map(normalizeRecommendedProduct)
-      .sort((a, b) => {
-        const scoreItem = (item) => {
-          let score = 0;
-          if (item.category && item.category === product.category) score += 3;
-          if (
-            currentSkinSignal &&
-            item.skin &&
-            item.skin.toLowerCase().includes(currentSkinSignal)
-          )
-            score += 2;
-          if (hasSafetySignals) {
-            const text = `${item.name || ""} ${item.brand || ""}`.toLowerCase();
-            if (
-              text.includes("gentle") ||
-              text.includes("calming") ||
-              text.includes("soonjung")
-            )
-              score += 2;
-            if (text.includes("unscented") || text.includes("centella"))
-              score += 1;
-          }
-          return score;
-        };
-        return scoreItem(b) - scoreItem(a);
-      })
-      .slice(0, 3);
-  }, [recommendedProducts, product, highestSeverity, flagCount]);
+  const recommendedItems = useMemo(
+    () =>
+      getRecommendedProducts(
+        product,
+        recommendedProducts,
+        highestSeverity,
+        flagCount,
+      ),
+    [product, recommendedProducts, highestSeverity, flagCount],
+  );
 
   const brandName = product?.brandName || product?.brand || "K-Beauty";
   const price = formatPrice(product);

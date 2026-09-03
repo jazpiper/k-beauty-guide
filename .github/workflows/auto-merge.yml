@@ -12,7 +12,9 @@ jobs:
   enable-auto-merge:
     name: Enable Auto-Merge
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: |
+      github.event.pull_request.draft == false &&
+      (github.actor == 'google-labs-jules[bot]' || github.event.pull_request.user.login == 'google-labs-jules[bot]' || github.actor == github.repository_owner)
     steps:
       - name: Enable auto-merge for PR
         run: gh pr merge --auto --squash "$PR_URL"
