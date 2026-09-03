@@ -20,6 +20,7 @@ const FORBIDDEN_PROFILE_FIELDS = [
 ];
 const DISCLAIMER =
   "Ingredient information is educational and not a medical diagnosis.";
+const ALIAS_QUERY_CHUNK_SIZE = 50;
 
 type AliasRow = {
   ingredient_id: string;
@@ -63,111 +64,121 @@ type ParsedIngredient = {
 };
 
 serve(async (req: Request) => {
-  const methodError = requirePost(req);
-  if (methodError) return methodError;
+  try {
+    const methodError = requirePost(req);
+    if (methodError) return methodError;
 
-  const body = await readJsonBody(req);
-  if (body instanceof Response) return body;
+    const body = await readJsonBody(req);
+    if (body instanceof Response) return body;
 
-  const forbiddenProfileField = FORBIDDEN_PROFILE_FIELDS.find(
-    (field) => field in body,
-  );
-  if (forbiddenProfileField) {
+    const forbiddenProfileField = FORBIDDEN_PROFILE_FIELDS.find(
+      (field) => field in body,
+    );
+    if (forbiddenProfileField) {
+      return errorResponse(
+        req,
+        400,
+        "validation_error",
+        `${forbiddenProfileField} is not accepted by the public analyzer`,
+      );
+    }
+
+    const ingredientText = stringField(body, "ingredientText");
+    if (!ingredientText) {
+      return errorResponse(
+        req,
+        400,
+        "validation_error",
+        "ingredientText is required",
+      );
+    }
+
+    if (ingredientText.length > MAX_INGREDIENT_TEXT_LENGTH) {
+      return errorResponse(
+        req,
+        400,
+        "validation_error",
+        "ingredientText must be 10,000 characters or fewer",
+      );
+    }
+
+    const tokens = splitIngredientText(ingredientText);
+    if (tokens.length === 0) {
+      return errorResponse(
+        req,
+        400,
+        "validation_error",
+        "ingredientText must contain at least one ingredient name",
+      );
+    }
+
+    const authorization = req.headers.get("authorization") ?? "";
+    const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+
+    if (!token) {
+      return errorResponse(req, 401, "unauthorized", "Bearer token is required");
+    }
+
+    const clientResult = createServiceRoleClient();
+    if (!clientResult.ok) {
+      return errorResponse(
+        req,
+        503,
+        "service_unavailable",
+        "Analyzer database client is not configured",
+        { missing: clientResult.missing },
+      );
+    }
+
+    const { data: userData, error: userError } =
+      await clientResult.client.auth.getUser(token);
+    if (userError || !userData.user) {
+      return errorResponse(req, 401, "unauthorized", "Invalid user token");
+    }
+
+    const normalizedNames = [...new Set(tokens.map((t) => t.normalizedName))];
+    const aliasMap = await loadPublicAliasMap(
+      req,
+      clientResult.client,
+      normalizedNames,
+    );
+    if (aliasMap instanceof Response) return aliasMap;
+
+    const parsedIngredients = tokens.map((t) => matchToken(t, aliasMap));
+    const matchedIngredientIds = [
+      ...new Set(
+        parsedIngredients
+          .map((ingredient) => ingredient.ingredientId)
+          .filter((ingredientId): ingredientId is string =>
+            Boolean(ingredientId),
+          ),
+      ),
+    ];
+
+    const ruleRows = await loadActiveRules(
+      req,
+      clientResult.client,
+      matchedIngredientIds,
+    );
+    if (ruleRows instanceof Response) return ruleRows;
+
+    return okResponse(req, {
+      parsedIngredients,
+      flags: buildFlags(parsedIngredients, ruleRows),
+      unmatchedCount: parsedIngredients.filter(
+        (ingredient) => !ingredient.ingredientId,
+      ).length,
+      disclaimer: DISCLAIMER,
+    });
+  } catch (err) {
     return errorResponse(
       req,
-      400,
-      "validation_error",
-      `${forbiddenProfileField} is not accepted by the public analyzer`,
+      500,
+      "internal_error",
+      "An unexpected error occurred",
+      err instanceof Error ? err.message : String(err),
     );
   }
-
-  const ingredientText = stringField(body, "ingredientText");
-  if (!ingredientText) {
-    return errorResponse(
-      req,
-      400,
-      "validation_error",
-      "ingredientText is required",
-    );
-  }
-
-  if (ingredientText.length > MAX_INGREDIENT_TEXT_LENGTH) {
-    return errorResponse(
-      req,
-      400,
-      "validation_error",
-      "ingredientText must be 10,000 characters or fewer",
-    );
-  }
-
-  const tokens = splitIngredientText(ingredientText);
-  if (tokens.length === 0) {
-    return errorResponse(
-      req,
-      400,
-      "validation_error",
-      "ingredientText must contain at least one ingredient name",
-    );
-  }
-
-  const authorization = req.headers.get("authorization") ?? "";
-  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
-
-  if (!token) {
-    return errorResponse(req, 401, "unauthorized", "Bearer token is required");
-  }
-
-  const clientResult = createServiceRoleClient();
-  if (!clientResult.ok) {
-    return errorResponse(
-      req,
-      503,
-      "service_unavailable",
-      "Analyzer database client is not configured",
-      { missing: clientResult.missing },
-    );
-  }
-
-  const { data: userData, error: userError } =
-    await clientResult.client.auth.getUser(token);
-  if (userError || !userData.user) {
-    return errorResponse(req, 401, "unauthorized", "Invalid user token");
-  }
-
-  const normalizedNames = [...new Set(tokens.map((t) => t.normalizedName))];
-  const aliasMap = await loadPublicAliasMap(
-    req,
-    clientResult.client,
-    normalizedNames,
-  );
-  if (aliasMap instanceof Response) return aliasMap;
-
-  const parsedIngredients = tokens.map((token) => matchToken(token, aliasMap));
-  const matchedIngredientIds = [
-    ...new Set(
-      parsedIngredients
-        .map((ingredient) => ingredient.ingredientId)
-        .filter((ingredientId): ingredientId is string =>
-          Boolean(ingredientId),
-        ),
-    ),
-  ];
-
-  const ruleRows = await loadActiveRules(
-    req,
-    clientResult.client,
-    matchedIngredientIds,
-  );
-  if (ruleRows instanceof Response) return ruleRows;
-
-  return okResponse(req, {
-    parsedIngredients,
-    flags: buildFlags(parsedIngredients, ruleRows),
-    unmatchedCount: parsedIngredients.filter(
-      (ingredient) => !ingredient.ingredientId,
-    ).length,
-    disclaimer: DISCLAIMER,
-  });
 });
 
 function splitIngredientText(ingredientText: string): IngredientToken[] {
@@ -205,14 +216,29 @@ async function loadPublicAliasMap(
   client: SupabaseClient,
   normalizedNames: string[],
 ): Promise<Map<string, AliasRow[]> | Response> {
-  if (normalizedNames.length === 0) {
+  const uniqueNames = [
+    ...new Set(
+      (normalizedNames || [])
+        .map((name) => String(name || "").trim().toLowerCase())
+        .filter((name) => name.length > 0),
+    ),
+  ];
+  if (uniqueNames.length === 0) {
     return new Map<string, AliasRow[]>();
   }
 
-  const { data, error } = await client
-    .from("ingredient_aliases")
-    .select(
-      `
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueNames.length; i += ALIAS_QUERY_CHUNK_SIZE) {
+    chunks.push(uniqueNames.slice(i, i + ALIAS_QUERY_CHUNK_SIZE));
+  }
+
+  try {
+    const chunkResults = await Promise.all(
+      chunks.map((chunk) =>
+        client
+          .from("ingredient_aliases")
+          .select(
+            `
       ingredient_id,
       normalized_alias,
       confidence,
@@ -224,76 +250,169 @@ async function loadPublicAliasMap(
         source_status
       )
     `,
-    )
-    .in("normalized_alias", normalizedNames)
-    .in("ingredients.source_status", ["verified", "imported"]);
+          )
+          .in("normalized_alias", chunk)
+          .in("ingredients.source_status", ["verified", "imported"]),
+      ),
+    );
 
-  if (error) {
+    for (const result of chunkResults) {
+      if (result?.error) {
+        return errorResponse(
+          req,
+          500,
+          "database_error",
+          "Failed to load ingredient aliases",
+          result.error.message || String(result.error),
+        );
+      }
+    }
+
+    const newAliasMap = new Map<string, AliasRow[]>();
+    for (const result of chunkResults) {
+      const rows = ((result?.data ?? []) as unknown as AliasRow[]).filter(
+        (row) =>
+          Boolean(row) &&
+          (row.ingredients?.source_status === "verified" ||
+            row.ingredients?.source_status === "imported"),
+      );
+
+      for (const row of rows) {
+        const aliasKey = String(row.normalized_alias || "").trim().toLowerCase();
+        if (!aliasKey) continue;
+        if (!newAliasMap.has(aliasKey)) {
+          newAliasMap.set(aliasKey, []);
+        }
+        newAliasMap.get(aliasKey)!.push(row);
+      }
+    }
+
+    return newAliasMap;
+  } catch (err) {
     return errorResponse(
       req,
       500,
       "database_error",
       "Failed to load ingredient aliases",
-      error.message,
+      err instanceof Error ? err.message : String(err),
     );
   }
-
-  const rows = ((data ?? []) as unknown as AliasRow[]).filter(
-    (row) =>
-      row.ingredients?.source_status === "verified" ||
-      row.ingredients?.source_status === "imported",
-  );
-
-  const newAliasMap = new Map<string, AliasRow[]>();
-  for (const row of rows) {
-    const aliasKey = String(row.normalized_alias || "").trim();
-    if (!newAliasMap.has(aliasKey)) {
-      newAliasMap.set(aliasKey, []);
-    }
-    newAliasMap.get(aliasKey)!.push(row);
-  }
-
-  return newAliasMap;
 }
 
 function matchToken(
   token: IngredientToken,
-  aliasMap: Map<string, AliasRow[]>,
+  aliasMap?: Map<string, AliasRow[]> | null,
 ): ParsedIngredient {
-  const matchingRows = aliasMap.get(token.normalizedName) || [];
-
-  const match = matchingRows
-    .map((row) => {
-      const aliasConfidence = Number(row.confidence ?? 1);
-      return {
-        row,
-        confidence: Number.isFinite(aliasConfidence) ? aliasConfidence : 1,
-      };
-    })
-    .filter((candidate) => candidate.row.ingredients)
-    .sort((a, b) => {
-      return b.confidence - a.confidence;
-    })[0];
-
-  if (!match?.row.ingredients) {
+  if (!token) {
     return {
-      position: token.position,
-      rawName: token.rawName,
+      position: 1,
+      rawName: "",
       ingredientId: null,
-      displayName: token.rawName,
+      displayName: "",
       matchMethod: "unmatched",
       confidence: 0,
     };
   }
 
+  const map =
+    aliasMap instanceof Map ? aliasMap : new Map<string, AliasRow[]>();
+  const tokenNormalized = normalizeIngredientName(
+    token.normalizedName || token.rawName || "",
+  );
+  const normalizedKey = (token.normalizedName || "").toLowerCase().trim();
+  const rawKey = (token.rawName || "").toLowerCase().trim();
+
+  const matchingRows =
+    (token.normalizedName ? map.get(token.normalizedName) : undefined) ||
+    (tokenNormalized ? map.get(tokenNormalized) : undefined) ||
+    (normalizedKey ? map.get(normalizedKey) : undefined) ||
+    (rawKey ? map.get(rawKey) : undefined) ||
+    [];
+
+  const match = matchingRows
+    .map((row) => {
+      const aliasConfidence = Number(row?.confidence ?? 1);
+      const clampedConfidence = Math.max(
+        0,
+        Math.min(1, Number.isFinite(aliasConfidence) ? aliasConfidence : 1),
+      );
+      return {
+        row,
+        confidence: clampedConfidence,
+      };
+    })
+    .filter((candidate) => candidate.row?.ingredients)
+    .sort((a, b) => {
+      const aCanonical = normalizeIngredientName(
+        a.row.ingredients?.canonical_name ?? "",
+      );
+      const bCanonical = normalizeIngredientName(
+        b.row.ingredients?.canonical_name ?? "",
+      );
+      const aIsExact =
+        Boolean(aCanonical) &&
+        Boolean(tokenNormalized) &&
+        aCanonical === tokenNormalized;
+      const bIsExact =
+        Boolean(bCanonical) &&
+        Boolean(tokenNormalized) &&
+        bCanonical === tokenNormalized;
+
+      // Exact canonical name match takes strict precedence over alias match
+      if (aIsExact !== bIsExact) {
+        return aIsExact ? -1 : 1;
+      }
+
+      // Higher confidence preferred
+      if (b.confidence !== a.confidence) {
+        return b.confidence - a.confidence;
+      }
+
+      // Verified source status preferred over imported
+      if (
+        a.row.ingredients?.source_status !== b.row.ingredients?.source_status
+      ) {
+        if (a.row.ingredients?.source_status === "verified") return -1;
+        if (b.row.ingredients?.source_status === "verified") return 1;
+      }
+
+      // Deterministic tiebreaker by ingredient_id
+      return String(a.row.ingredient_id || "").localeCompare(
+        String(b.row.ingredient_id || ""),
+      );
+    })[0];
+
+  if (!match?.row?.ingredients) {
+    return {
+      position: token.position ?? 1,
+      rawName: token.rawName ?? "",
+      ingredientId: null,
+      displayName: token.rawName ?? "",
+      matchMethod: "unmatched",
+      confidence: 0,
+    };
+  }
+
+  const canonicalNormalized = normalizeIngredientName(
+    match.row.ingredients.canonical_name,
+  );
+  const isExact =
+    Boolean(canonicalNormalized) &&
+    Boolean(tokenNormalized) &&
+    tokenNormalized === canonicalNormalized;
+
+  const canonicalName = String(
+    match.row.ingredients.canonical_name || "",
+  ).trim();
+
   return {
-    position: token.position,
-    rawName: token.rawName,
+    position: token.position ?? 1,
+    rawName: token.rawName ?? "",
     ingredientId: match.row.ingredient_id,
-    displayName: match.row.ingredients.canonical_name,
+    displayName: canonicalName || token.rawName || "",
     inciName: match.row.ingredients.inci_name,
     koreanName: match.row.ingredients.korean_name,
-    matchMethod: "exact", // Since it's a direct map lookup, it's always an exact alias match
+    matchMethod: isExact ? "exact" : "alias",
     confidence: Number(match.confidence.toFixed(2)),
   };
 }
@@ -312,10 +431,11 @@ async function loadActiveRules(
 
   const now = Date.now();
   if (!cachedRulesMap || now - lastRulesCacheUpdate >= RULES_CACHE_TTL_MS) {
-    const { data, error } = await client
-      .from("ingredient_safety_rules")
-      .select(
-        `
+    try {
+      const { data, error } = await client
+        .from("ingredient_safety_rules")
+        .select(
+          `
         id,
         ingredient_id,
         severity,
@@ -325,32 +445,41 @@ async function loadActiveRules(
         recommendation,
         version
       `,
-      )
-      .eq("active", true)
-      .limit(10000); // Fetch all active rules for the global cache
+        )
+        .eq("active", true)
+        .limit(10000); // Fetch all active rules for the global cache
 
-    if (error) {
+      if (error) {
+        return errorResponse(
+          req,
+          500,
+          "database_error",
+          "Failed to load safety rules",
+          error.message || String(error),
+        );
+      }
+
+      const fetchedRules = (data ?? []) as unknown as RuleRow[];
+
+      const newRulesMap = new Map<string, RuleRow[]>();
+      for (const rule of fetchedRules) {
+        if (!newRulesMap.has(rule.ingredient_id)) {
+          newRulesMap.set(rule.ingredient_id, []);
+        }
+        newRulesMap.get(rule.ingredient_id)!.push(rule);
+      }
+
+      cachedRulesMap = newRulesMap;
+      lastRulesCacheUpdate = now;
+    } catch (err) {
       return errorResponse(
         req,
         500,
         "database_error",
         "Failed to load safety rules",
-        error.message,
+        err instanceof Error ? err.message : String(err),
       );
     }
-
-    const fetchedRules = (data ?? []) as unknown as RuleRow[];
-
-    const newRulesMap = new Map<string, RuleRow[]>();
-    for (const rule of fetchedRules) {
-      if (!newRulesMap.has(rule.ingredient_id)) {
-        newRulesMap.set(rule.ingredient_id, []);
-      }
-      newRulesMap.get(rule.ingredient_id)!.push(rule);
-    }
-
-    cachedRulesMap = newRulesMap;
-    lastRulesCacheUpdate = now;
   }
 
   const results: RuleRow[] = [];
@@ -387,3 +516,11 @@ function buildFlags(
       }));
   });
 }
+
+export {
+  ALIAS_QUERY_CHUNK_SIZE,
+  loadPublicAliasMap,
+  matchToken,
+  normalizeIngredientName,
+  splitIngredientText,
+};
