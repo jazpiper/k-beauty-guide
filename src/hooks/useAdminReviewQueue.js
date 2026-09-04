@@ -110,6 +110,34 @@ export const STATUS_META = {
   "needs-info": { label: "Needs Info", tone: "needs-info" },
 };
 
+export function getStatusMeta(status) {
+  return STATUS_META[status] || STATUS_META.pending;
+}
+
+export function getShellNoteForStatus(status) {
+  switch (status) {
+    case "approved":
+      return "Approved in shell state. Backend wiring pending.";
+    case "rejected":
+      return "Rejected in shell state. Backend wiring pending.";
+    case "needs-info":
+    default:
+      return "Marked needs-info in shell state. Backend wiring pending.";
+  }
+}
+
+export function updateItemStatusInQueue(queue, targetId, newStatus) {
+  return queue.map((item) =>
+    item.id === targetId
+      ? {
+          ...item,
+          status: newStatus,
+          notes: getShellNoteForStatus(newStatus),
+        }
+      : item,
+  );
+}
+
 export function useAdminReviewQueue(initialQueue = INITIAL_QUEUE) {
   const [queue, setQueue] = useState(initialQueue);
   const [selectedId, setSelectedId] = useState(initialQueue[0]?.id || null);
@@ -118,27 +146,16 @@ export function useAdminReviewQueue(initialQueue = INITIAL_QUEUE) {
     () => queue.find((item) => item.id === selectedId) || queue[0] || null,
     [queue, selectedId],
   );
-  const selectedStatusMeta = selectedItem
-    ? STATUS_META[selectedItem.status] || STATUS_META.pending
-    : null;
+
+  const selectedStatusMeta = useMemo(
+    () => (selectedItem ? getStatusMeta(selectedItem.status) : null),
+    [selectedItem],
+  );
 
   const updateStatus = (status) => {
     if (!selectedItem) return;
-    setQueue((prev) =>
-      prev.map((item) =>
-        item.id === selectedItem.id
-          ? {
-              ...item,
-              status,
-              notes:
-                status === "approved"
-                  ? "Approved in shell state. Backend wiring pending."
-                  : status === "rejected"
-                    ? "Rejected in shell state. Backend wiring pending."
-                    : "Marked needs-info in shell state. Backend wiring pending.",
-            }
-          : item,
-      ),
+    setQueue((prevQueue) =>
+      updateItemStatusInQueue(prevQueue, selectedItem.id, status),
     );
   };
 
@@ -151,3 +168,5 @@ export function useAdminReviewQueue(initialQueue = INITIAL_QUEUE) {
     updateStatus,
   };
 }
+
+export default useAdminReviewQueue;
