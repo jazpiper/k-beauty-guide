@@ -245,22 +245,41 @@ function getDomImageDetails(
   );
   if (!sectionMatch) return {};
 
+  const ariaLabel = sectionMatch[1];
+  const targetIndex = sectionMatch[2]
+    ? Number.parseInt(sectionMatch[2], 10)
+    : 0;
+
   const sectionRegex = /<section\b([^>]*)>([\s\S]*?)<\/section>/gi;
   for (const match of html.matchAll(sectionRegex)) {
     const attrs = match[1] ?? "";
-    if (getAttrValue(attrs, "aria-label") !== sectionMatch[1]) continue;
+    if (getAttrValue(attrs, "aria-label") !== ariaLabel) continue;
 
-    const imgTags = Array.from((match[2] ?? "").matchAll(/<img\b([^>]*)>/gi));
-    const index = sectionMatch[2] ? Number.parseInt(sectionMatch[2], 10) : 0;
-    const imgAttrs = imgTags[index]?.[1] ?? "";
-    return {
-      altText: getAttrValue(imgAttrs, "alt"),
-      width:
-        Number.parseInt(getAttrValue(imgAttrs, "width") ?? "", 10) || undefined,
-      height:
-        Number.parseInt(getAttrValue(imgAttrs, "height") ?? "", 10) ||
-        undefined,
-    };
+    const innerHtml = match[2] ?? "";
+    const imgRegex = /<img\b([^>]*)>/gi;
+    let imgAttrs: string | undefined;
+    let currentIndex = 0;
+    let imgMatch: RegExpExecArray | null;
+
+    while ((imgMatch = imgRegex.exec(innerHtml)) !== null) {
+      if (currentIndex === targetIndex) {
+        imgAttrs = imgMatch[1] ?? "";
+        break;
+      }
+      currentIndex++;
+    }
+
+    if (imgAttrs !== undefined) {
+      return {
+        altText: getAttrValue(imgAttrs, "alt"),
+        width:
+          Number.parseInt(getAttrValue(imgAttrs, "width") ?? "", 10) ||
+          undefined,
+        height:
+          Number.parseInt(getAttrValue(imgAttrs, "height") ?? "", 10) ||
+          undefined,
+      };
+    }
   }
 
   return {};
