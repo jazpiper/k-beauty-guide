@@ -1,4 +1,7 @@
-# K-Beauty Guide
+# K-Beauty Guide (Archived)
+
+## Project Status: ARCHIVED (2026-09-04)
+This repository is currently archived and frozen. Frontend UI and Supabase scaffolding were validated, but live crawling and production database pipelines were not wired.
 
 ## Project Overview
 K-Beauty Guide is a platform for foreigners interested in K-Beauty, providing information on Korean cosmetics and ingredients. The project is a React-based web application with a planned integration of Supabase for backend services.
