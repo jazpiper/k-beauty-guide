@@ -23,46 +23,40 @@ function getOrBuildKnownIngredientsIndex(knownIngredients) {
   }
 
   const exactMatchMap = new Map();
-  const precomputedCandidates = [];
-
-  for (const ingredient of knownIngredients || []) {
-    const candidates = [
-      ingredient.name,
-      ingredient.korean,
-      ...(ingredient.aliases ?? []),
-    ]
-      .map(normalizeIngredientName)
-      .filter(Boolean);
-
-    for (const candidate of candidates) {
-      if (!exactMatchMap.has(candidate)) {
-        exactMatchMap.set(candidate, ingredient);
-      }
-    }
-
-    precomputedCandidates.push({ ingredient, candidates });
-  }
-
   const ahoRoot = new AhoNode();
   const candidateIndexToIngredient = [];
   let globalCandidateIndex = 0;
 
-  for (let i = 0; i < precomputedCandidates.length; i++) {
-    const pc = precomputedCandidates[i];
-    for (let j = 0; j < pc.candidates.length; j++) {
-      const cand = pc.candidates[j];
+  for (const ingredient of knownIngredients || []) {
+    const rawCandidates = [
+      ingredient.name,
+      ingredient.korean,
+      ...(ingredient.aliases ?? []),
+    ];
+
+    for (let j = 0; j < rawCandidates.length; j++) {
+      const cand = normalizeIngredientName(rawCandidates[j]);
+      if (!cand) continue;
+
+      if (!exactMatchMap.has(cand)) {
+        exactMatchMap.set(cand, ingredient);
+      }
+
       let node = ahoRoot;
       for (let k = 0; k < cand.length; k++) {
         const char = cand[k];
-        if (!node.next.has(char)) {
-          node.next.set(char, new AhoNode());
+        let child = node.next.get(char);
+        if (child === undefined) {
+          child = new AhoNode();
+          node.next.set(char, child);
         }
-        node = node.next.get(char);
+        node = child;
       }
+
       if (globalCandidateIndex < node.minCandidateIndex) {
         node.minCandidateIndex = globalCandidateIndex;
       }
-      candidateIndexToIngredient[globalCandidateIndex] = pc.ingredient;
+      candidateIndexToIngredient[globalCandidateIndex] = ingredient;
       globalCandidateIndex++;
     }
   }
@@ -73,15 +67,18 @@ function getOrBuildKnownIngredientsIndex(knownIngredients) {
     queue.push(child);
   }
 
-  while (queue.length > 0) {
-    const current = queue.shift();
+  let queueHead = 0;
+  while (queueHead < queue.length) {
+    const current = queue[queueHead++];
     for (const [char, child] of current.next.entries()) {
       let failNode = current.fail;
       while (failNode !== ahoRoot && !failNode.next.has(char)) {
         failNode = failNode.fail;
       }
-      if (failNode.next.has(char)) {
-        child.fail = failNode.next.get(char);
+
+      const matchedFail = failNode.next.get(char);
+      if (matchedFail !== undefined) {
+        child.fail = matchedFail;
       } else {
         child.fail = ahoRoot;
       }
