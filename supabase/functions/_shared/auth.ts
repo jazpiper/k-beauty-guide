@@ -2,9 +2,9 @@ export function constantTimeCompare(a: string, b: string): boolean {
   const aLen = a.length;
   const bLen = b.length;
   let result = aLen ^ bLen;
-  for (let i = 0; i < aLen; i++) {
-    const bChar = i < bLen ? b.charCodeAt(i) : 0;
-    result |= a.charCodeAt(i) ^ bChar;
+  for (let i = 0; i < bLen; i++) {
+    const aChar = i < aLen ? a.charCodeAt(i) : 0;
+    result |= aChar ^ b.charCodeAt(i);
   }
   return result === 0;
 }

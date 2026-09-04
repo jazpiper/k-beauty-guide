@@ -5,8 +5,20 @@ Deno.test("constantTimeCompare - exact match returns true", () => {
   assertEquals(constantTimeCompare("secret-token", "secret-token"), true);
 });
 
-Deno.test("constantTimeCompare - different length returns false", () => {
-  assertEquals(constantTimeCompare("secret-token", "secret"), false);
+Deno.test("constantTimeCompare - different length (user input shorter) returns false", () => {
+  assertEquals(constantTimeCompare("secret", "secret-token"), false);
+});
+
+Deno.test("constantTimeCompare - different length (user input longer) returns false", () => {
+  assertEquals(constantTimeCompare("secret-token-extra", "secret-token"), false);
+});
+
+Deno.test("constantTimeCompare - empty input string returns false when secret is non-empty", () => {
+  assertEquals(constantTimeCompare("", "secret-token"), false);
+});
+
+Deno.test("constantTimeCompare - empty strings match", () => {
+  assertEquals(constantTimeCompare("", ""), true);
 });
 
 Deno.test("constantTimeCompare - same length different content returns false", () => {
