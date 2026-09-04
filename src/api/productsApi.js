@@ -226,39 +226,51 @@ function buildFallbackProductDetail(slug) {
   const flags = buildFallbackFlags(product, ingredients);
 
   return {
-    product: {
-      ...product,
-      brandName: product.brand,
-      description: `${product.name} is available as static fallback content until Supabase product detail data is configured.`,
-      safetyFlagCount: flags.length,
-      highestSeverity: getHighestSeverity(flags),
-      buyLinks: product.buyLinks ?? [],
-      source: "static",
-    },
-    ingredients: ingredients.map((ingredient, index) => ({
-      id: ingredient.id,
-      ingredientId: ingredient.id,
-      position: index + 1,
-      name: ingredient.name,
-      canonicalName: ingredient.name,
-      korean: ingredient.korean,
-      koreanName: ingredient.korean,
-      reviewStatus: "matched",
-      safety: ingredient.safety,
-      benefit: ingredient.benefit,
-      tags: ingredient.tags,
-    })),
+    product: buildFallbackProductObject(product, flags),
+    ingredients: ingredients.map(mapFallbackIngredient),
     flags,
     sources: buildFallbackSources(product, flags),
     images: [],
     recommendedProducts: selectFallbackRecommendations(product, flags),
-    safetyReport: {
-      ingredientCount: ingredients.length,
-      unmatchedIngredientCount: 0,
-      flags,
-    },
+    safetyReport: buildFallbackSafetyReport(ingredients, flags),
     source: "static",
     error: null,
+  };
+}
+
+function buildFallbackProductObject(product, flags) {
+  return {
+    ...product,
+    brandName: product.brand,
+    description: `${product.name} is available as static fallback content until Supabase product detail data is configured.`,
+    safetyFlagCount: flags.length,
+    highestSeverity: getHighestSeverity(flags),
+    buyLinks: product.buyLinks ?? [],
+    source: "static",
+  };
+}
+
+function mapFallbackIngredient(ingredient, index) {
+  return {
+    id: ingredient.id,
+    ingredientId: ingredient.id,
+    position: index + 1,
+    name: ingredient.name,
+    canonicalName: ingredient.name,
+    korean: ingredient.korean,
+    koreanName: ingredient.korean,
+    reviewStatus: "matched",
+    safety: ingredient.safety,
+    benefit: ingredient.benefit,
+    tags: ingredient.tags,
+  };
+}
+
+function buildFallbackSafetyReport(ingredients, flags) {
+  return {
+    ingredientCount: ingredients.length,
+    unmatchedIngredientCount: 0,
+    flags,
   };
 }
 
